@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import { Activity, ShieldCheck, Stethoscope } from "lucide-react";
 import { useApp } from "../_components/app";
 import { SignInPrompt, Summary } from "../_components/ui";
+import { Application } from "./case";
 export default function Review() {
   const { mode, token, api, run, busy, setNotice, setError, openAuth } =
     useApp();
   const [admin, setAdmin] = useState<any>({ applications: [], audit: [] });
+  const reload = async () => setAdmin(await api("admin/overview"));
   useEffect(() => {
     if (mode === "live" && !token) return;
     let active = true;
@@ -49,12 +51,12 @@ export default function Review() {
       <section className="panel">
         <h2>Provider review queue</h2>
         <p className="section-copy">
-          Credential approval is a separate clinical workflow. Request more
-          information or reject incomplete preview applications.
+          Check each claim against the uploaded evidence and with the issuing
+          body before approving. Approval publishes the professional’s scope.
         </p>
         {admin.applications.length === 0 ? (
           <p className="empty-inline">No applications awaiting review.</p>
-        ) : (
+        ) : mode === "demo" ? (
           admin.applications.map((a: any) => (
             <div className="review-card" key={a.id}>
               <div>
@@ -62,43 +64,45 @@ export default function Review() {
                 <span className="status">{a.status.replaceAll("_", " ")}</span>
                 <p>{a.bio}</p>
               </div>
-              {mode === "demo" && (
-                <div className="review-actions">
-                  <button
-                    className="button secondary"
-                    disabled={busy}
-                    onClick={() =>
-                      run(async () => {
-                        await api("admin/review", "POST", {
-                          id: a.id,
-                          decision: "NEEDS_INFORMATION",
-                        });
-                        setAdmin(await api("admin/overview"));
-                        setNotice("Requested additional information.");
-                      })
-                    }
-                  >
-                    Request information
-                  </button>
-                  <button
-                    className="text-button"
-                    disabled={busy}
-                    onClick={() =>
-                      run(async () => {
-                        await api("admin/review", "POST", {
-                          id: a.id,
-                          decision: "REJECTED",
-                        });
-                        setAdmin(await api("admin/overview"));
-                        setNotice("Preview application rejected.");
-                      })
-                    }
-                  >
-                    Reject
-                  </button>
-                </div>
-              )}
+              <div className="review-actions">
+                <button
+                  className="button secondary"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      await api("admin/review", "POST", {
+                        id: a.id,
+                        decision: "NEEDS_INFORMATION",
+                      });
+                      await reload();
+                      setNotice("Requested additional information.");
+                    })
+                  }
+                >
+                  Request information
+                </button>
+                <button
+                  className="text-button"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      await api("admin/review", "POST", {
+                        id: a.id,
+                        decision: "REJECTED",
+                      });
+                      await reload();
+                      setNotice("Preview application rejected.");
+                    })
+                  }
+                >
+                  Reject
+                </button>
+              </div>
             </div>
+          ))
+        ) : (
+          admin.applications.map((a: any) => (
+            <Application key={a.id} item={a} reload={reload} />
           ))
         )}
       </section>

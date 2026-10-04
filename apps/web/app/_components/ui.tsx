@@ -10,6 +10,30 @@ export const professions: Record<string, string> = {
   counselor: "Counselor",
   dietitian: "Dietitian",
   nutritionist: "Nutritionist",
+  personal_trainer: "Personal trainer",
+  fitness_coach: "Fitness coach",
+  yoga_instructor: "Yoga instructor",
+};
+export const fitnessProfessions = [
+  "personal_trainer",
+  "fitness_coach",
+  "yoga_instructor",
+];
+// Appointment times are always shown in Nepal time, wherever the visitor is.
+export const nepalTime = (value: string | Date, withDate = true) =>
+  new Date(value).toLocaleString("en-NP", {
+    timeZone: "Asia/Kathmandu",
+    ...(withDate ? { dateStyle: "medium" } : {}),
+    timeStyle: "short",
+  });
+export const appointmentStatus: Record<string, string> = {
+  HELD: "Awaiting confirmation",
+  CONFIRMED: "Confirmed",
+  CANCELLED: "Cancelled",
+  EXPIRED: "Not confirmed in time",
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
+  NO_SHOW: "Missed",
 };
 export function Dialog({
   title,

@@ -13,7 +13,12 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { useApp } from "../_components/app";
-import { ComingSoon, money, professions } from "../_components/ui";
+import {
+  ComingSoon,
+  fitnessProfessions,
+  money,
+  professions,
+} from "../_components/ui";
 import { features, type Feature } from "../_lib/features";
 const groups: { id: Feature; label: string; professions: string[] }[] = [
   {
@@ -26,7 +31,11 @@ const groups: { id: Feature; label: string; professions: string[] }[] = [
     label: "Nutrition",
     professions: ["dietitian", "nutritionist"],
   },
-  { id: "fitness", label: "Fitness", professions: [] },
+  {
+    id: "fitness",
+    label: "Fitness",
+    professions: ["personal_trainer", "fitness_coach", "yoga_instructor"],
+  },
 ];
 export default function Professionals() {
   return (
@@ -204,6 +213,8 @@ function Directory() {
                       <h2>{p.name}</h2>
                       <p className="profession">
                         {professions[p.profession] || p.profession}
+                        {fitnessProfessions.includes(p.profession) &&
+                          " · Fitness, not medical care"}
                       </p>
                       <p className="bio">{p.bio}</p>
                       <div className="tags">

@@ -11,7 +11,7 @@ export type Feature =
 const defaults: Record<Feature, FeatureStatus> = {
   mental: "live",
   nutrition: "live",
-  fitness: "soon",
+  fitness: "live",
   store: "live",
   medicines: "soon",
   protect: "soon",

@@ -15,6 +15,14 @@ export const professionGroups = [
       ["nutritionist", "Nutritionist"],
     ],
   },
+  {
+    label: "Fitness",
+    options: [
+      ["personal_trainer", "Personal trainer"],
+      ["fitness_coach", "Fitness coach"],
+      ["yoga_instructor", "Yoga instructor"],
+    ],
+  },
 ] as const;
 export const registeringBodies = [
   "Nepal Medical Council",

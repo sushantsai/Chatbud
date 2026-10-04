@@ -2042,3 +2042,235 @@ fieldset {
     justify-self: start;
   }
 }
+
+/* Booking, appointments, practice workspace and review queue */
+.booking {
+  gap: 20px;
+}
+.booking legend {
+  font-size: 13px;
+  font-weight: 600;
+  color: #33445c;
+  padding: 0;
+  margin-bottom: 9px;
+}
+.day-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 3px 3px 8px;
+  margin: -3px;
+}
+.choice.day {
+  flex-shrink: 0;
+  padding: 8px 12px;
+}
+.choice.day input,
+.slot-grid input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.choice.day span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.choice.day small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+}
+.slot-grid .choice {
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.record-actions,
+.request-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.record.appointment > div:first-of-type {
+  min-width: 0;
+}
+.record .record-actions {
+  flex: 0 0 auto;
+}
+.record-actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.status-confirmed {
+  background: #e7f6ec;
+  border-color: #c5e6d0;
+  color: #17683a;
+}
+.status-held {
+  background: #fff5e0;
+  border-color: #f2dfb1;
+  color: #7d5300;
+}
+.status-cancelled,
+.status-expired {
+  background: #f3f4f6;
+  border-color: #e2e5ea;
+  color: #5d6676;
+}
+.request {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  gap: 16px;
+  align-items: end;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.request:last-child {
+  border-bottom: 0;
+}
+.request strong {
+  font-size: 14px;
+}
+.request p {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.request input {
+  width: 100%;
+  min-height: 40px;
+}
+.panel form .request-actions {
+  margin-top: 4px;
+}
+.hours {
+  display: flex;
+  flex-direction: column;
+}
+.hours > div {
+  display: grid;
+  grid-template-columns: 150px 120px max-content 120px;
+  justify-content: start;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.hours > div:last-child {
+  border-bottom: 0;
+}
+.hours .choice {
+  border: 0;
+  padding: 0;
+  background: none;
+}
+.hours input[type="time"] {
+  min-height: 40px;
+  font-variant-numeric: tabular-nums;
+}
+.hours input[aria-invalid="true"] {
+  border-color: #c62828;
+}
+.hours-off {
+  grid-column: 2 / -1;
+  color: var(--muted);
+  font-size: 13px;
+}
+.case {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--line);
+}
+.case:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.case > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.case > header p {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.case-bio {
+  margin-top: 14px;
+  font-size: 14px;
+  line-height: 1.65;
+  max-width: 72ch;
+}
+.facts {
+  margin-top: 20px;
+}
+.facts h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #33445c;
+}
+.facts dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px 22px;
+}
+.facts dt {
+  font-size: 11px;
+  color: var(--muted);
+}
+.facts dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.case-documents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.case-documents .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.case-decision {
+  margin-top: 22px;
+  padding: 18px;
+  background: var(--bg);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+@media (max-width: 760px) {
+  .request {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .hours > div {
+    grid-template-columns: 1fr 1fr;
+  }
+  .hours .choice {
+    grid-column: 1 / -1;
+  }
+  .hours > div > span:not(.hours-off) {
+    display: none;
+  }
+  .record.appointment {
+    flex-wrap: wrap;
+  }
+}
