@@ -11,7 +11,7 @@ import {
 } from "../_components/ui";
 // Whether the client is still offered the Cancel button for this appointment.
 function canCancel(a: any) {
-  // TODO(human): decide how close to the start a client may still cancel.
+  // Any pending or confirmed appointment, until it starts.
   return (
     ["HELD", "CONFIRMED"].includes(a.status) &&
     Date.parse(a.startsAt) > Date.now()
