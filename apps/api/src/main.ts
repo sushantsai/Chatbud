@@ -140,7 +140,8 @@ const slotQuery = z.object({ serviceId: z.string().uuid(), date: day }).strict()
 const appointmentRequest = z
   .object({
     serviceId: z.string().uuid(),
-    startsAt: z.string().datetime(),
+    // The database returns slot times with a numeric offset, not "Z".
+    startsAt: z.string().datetime({ offset: true }),
     idempotencyKey: z.string().uuid(),
   })
   .strict();
