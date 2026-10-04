@@ -1,118 +1,125 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Activity, ShieldCheck, Stethoscope } from "lucide-react";
-import { useApp } from "../_components/app";
-import { Summary } from "../_components/ui";
-import { Application } from "./_components/case";
-export default function Applications() {
-  const { mode, token, api, run, busy, setNotice, setError } = useApp();
-  const [admin, setAdmin] = useState<any>({ applications: [], audit: [] });
-  const reload = async () => setAdmin(await api("admin/overview"));
-  useEffect(() => {
-    if (mode === "live" && !token) return;
-    let active = true;
-    api("admin/overview")
-      .then((data) => {
-        if (active) setAdmin(data);
-      })
-      .catch((e) => {
-        if (active && e.name !== "AbortError") setError(e.message);
-      });
-    return () => {
-      active = false;
-    };
-  }, [mode, token]);
+import Link from "next/link";
+import {
+  CalendarDays,
+  LifeBuoy,
+  Package,
+  ShieldCheck,
+  Tag,
+  TriangleAlert,
+} from "lucide-react";
+import { teamRoleLabels } from "../_lib/roles";
+import { useLoad } from "./_components/use-load";
+function Tile({
+  href,
+  icon: Icon,
+  label,
+  value,
+  note,
+  alert,
+}: {
+  href: string;
+  icon: any;
+  label: string;
+  value: number;
+  note: string;
+  alert?: boolean;
+}) {
+  return (
+    <Link href={href} className={`ops-tile${alert ? " alert" : ""}`}>
+      <Icon size={20} />
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{note}</small>
+    </Link>
+  );
+}
+export default function TeamDashboard() {
+  const { data } = useLoad("ops_dashboard");
+  if (!data)
+    return (
+      <div className="loading" role="status">
+        Loading the dashboard…
+      </div>
+    );
   return (
     <>
-      <div className="summary-grid">
-        <Summary
-          icon={Stethoscope}
-          label="Applications"
-          value={admin.applications.length}
-        />
-        <Summary
-          icon={ShieldCheck}
-          label="Approval policy"
-          value="Human review"
-        />
-        <Summary
-          icon={Activity}
-          label="Environment"
-          value={mode === "demo" ? "Preview" : "Live"}
-        />
+      <p className="section-copy ops-roles">
+        Signed in as:{" "}
+        {data.roles
+          .filter((r: string) => teamRoleLabels[r])
+          .map((r: string) => teamRoleLabels[r])
+          .join(", ")}
+      </p>
+      <div className="ops-grid">
+        {data.applications !== null && (
+          <Tile
+            href="/admin/applications"
+            icon={ShieldCheck}
+            label="Applications to review"
+            value={data.applications}
+            note="Professionals waiting to be listed"
+            alert={data.applications > 0}
+          />
+        )}
+        {data.tickets && (
+          <>
+            <Tile
+              href="/admin/support"
+              icon={LifeBuoy}
+              label="Open grievances"
+              value={data.tickets.open}
+              note={`${data.tickets.unassigned} not yet assigned`}
+              alert={data.tickets.unassigned > 0}
+            />
+            <Tile
+              href="/admin/support"
+              icon={TriangleAlert}
+              label="Escalated"
+              value={data.tickets.escalated}
+              note="Need a senior decision"
+              alert={data.tickets.escalated > 0}
+            />
+          </>
+        )}
+        {data.bookings && (
+          <>
+            <Tile
+              href="/admin/bookings"
+              icon={CalendarDays}
+              label="Awaiting confirmation"
+              value={data.bookings.awaiting}
+              note={`${data.bookings.lapsed} lapsed unanswered this week`}
+              alert={data.bookings.lapsed > 0}
+            />
+            <Tile
+              href="/admin/bookings"
+              icon={CalendarDays}
+              label="Upcoming appointments"
+              value={data.bookings.upcoming}
+              note="Confirmed and still to happen"
+            />
+          </>
+        )}
+        {data.catalogue && (
+          <>
+            <Tile
+              href="/admin/catalogue"
+              icon={Package}
+              label="Products on sale"
+              value={data.catalogue.published}
+              note={`${data.catalogue.drafts} not yet published`}
+            />
+            <Tile
+              href="/admin/catalogue"
+              icon={Tag}
+              label="Live offers"
+              value={data.catalogue.offers}
+              note={`${data.catalogue.promos} promo codes active`}
+            />
+          </>
+        )}
       </div>
-      <section className="panel">
-        <h2>Applications to be listed</h2>
-        <p className="section-copy">
-          Check each claim against the uploaded evidence and with the issuing
-          body before approving. Approval publishes the professional’s scope.
-        </p>
-        {admin.applications.length === 0 ? (
-          <p className="empty-inline">No applications awaiting review.</p>
-        ) : mode === "demo" ? (
-          admin.applications.map((a: any) => (
-            <div className="review-card" key={a.id}>
-              <div>
-                <h3>{a.name}</h3>
-                <span className="status">{a.status.replaceAll("_", " ")}</span>
-                <p>{a.bio}</p>
-              </div>
-              <div className="review-actions">
-                <button
-                  className="button secondary"
-                  disabled={busy}
-                  onClick={() =>
-                    run(async () => {
-                      await api("admin/review", "POST", {
-                        id: a.id,
-                        decision: "NEEDS_INFORMATION",
-                      });
-                      await reload();
-                      setNotice("Requested additional information.");
-                    })
-                  }
-                >
-                  Request information
-                </button>
-                <button
-                  className="text-button"
-                  disabled={busy}
-                  onClick={() =>
-                    run(async () => {
-                      await api("admin/review", "POST", {
-                        id: a.id,
-                        decision: "REJECTED",
-                      });
-                      await reload();
-                      setNotice("Preview application rejected.");
-                    })
-                  }
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
-          ))
-        ) : (
-          admin.applications.map((a: any) => (
-            <Application key={a.id} item={a} reload={reload} />
-          ))
-        )}
-      </section>
-      <section className="panel">
-        <h2>Recent activity</h2>
-        {admin.audit?.length ? (
-          admin.audit.slice(0, 8).map((a: any, i: number) => (
-            <div className="record" key={i}>
-              <Activity size={17} />
-              <strong>{a.action}</strong>
-              <span>{new Date(a.at).toLocaleString()}</span>
-            </div>
-          ))
-        ) : (
-          <p className="empty-inline">Review activity will appear here.</p>
-        )}
-      </section>
     </>
   );
 }

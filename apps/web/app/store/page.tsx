@@ -13,6 +13,7 @@ import {
 import { useApp } from "../_components/app";
 import { ComingSoon, money } from "../_components/ui";
 import { features } from "../_lib/features";
+import { productCategories, unitPrice } from "../_lib/store";
 export default function Store() {
   const { mode, catalog, loading, catalogFailed, cart, setCart, setNotice } =
     useApp();
@@ -27,7 +28,7 @@ export default function Store() {
     );
   const products = catalog.products.filter(
     (p: any) =>
-      (category === "all" || p.kind === category) &&
+      (category === "all" || (p.category || p.kind) === category) &&
       `${p.name} ${p.description}`.toLowerCase().includes(query.toLowerCase()),
   );
   return (
@@ -48,8 +49,10 @@ export default function Store() {
         <div className="chips">
           {[
             ["all", "All products"],
-            ["WELLNESS", "Wellness"],
-            ["SUPPLEMENT", "Supplements"],
+            // Only categories that have something on sale.
+            ...Object.entries(productCategories).filter(([id]) =>
+              catalog.products.some((p: any) => (p.category || p.kind) === id),
+            ),
           ].map(([id, label]) => (
             <button
               key={id}
@@ -111,11 +114,23 @@ export default function Store() {
                       </span>
                     </div>
                     <div className="product-body">
-                      <small>{p.category || p.kind.toLowerCase()}</small>
+                      <small>
+                        {productCategories[p.category] ||
+                          p.category ||
+                          p.kind.toLowerCase()}
+                      </small>
                       <h2>{p.name}</h2>
                       <p>{p.description}</p>
+                      {p.offerTitle && p.offerPrice < p.price && (
+                        <span className="offer-tag">{p.offerTitle}</span>
+                      )}
                       <footer>
-                        <strong>{money(p.price)}</strong>
+                        <strong>
+                          {money(unitPrice(p))}
+                          {p.offerPrice != null && p.offerPrice < p.price && (
+                            <s>{money(p.price)}</s>
+                          )}
+                        </strong>
                         <button
                           className="add-button"
                           disabled={

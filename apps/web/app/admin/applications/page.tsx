@@ -1,0 +1,119 @@
+"use client";
+import { useEffect, useState } from "react";
+import { Activity, ShieldCheck, Stethoscope } from "lucide-react";
+import { useApp } from "../../_components/app";
+import { Summary } from "../../_components/ui";
+import { Area } from "../_components/area";
+import { Application } from "../_components/case";
+export default function Applications() {
+  const { mode, token, api, run, busy, setNotice, setError } = useApp();
+  const [admin, setAdmin] = useState<any>({ applications: [], audit: [] });
+  const reload = async () => setAdmin(await api("admin/overview"));
+  useEffect(() => {
+    if (mode === "live" && !token) return;
+    let active = true;
+    api("admin/overview")
+      .then((data) => {
+        if (active) setAdmin(data);
+      })
+      .catch((e) => {
+        if (active && e.name !== "AbortError") setError(e.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [mode, token]);
+  return (
+    <Area area="applications">
+      <div className="summary-grid">
+        <Summary
+          icon={Stethoscope}
+          label="Applications"
+          value={admin.applications.length}
+        />
+        <Summary
+          icon={ShieldCheck}
+          label="Approval policy"
+          value="Human review"
+        />
+        <Summary
+          icon={Activity}
+          label="Environment"
+          value={mode === "demo" ? "Preview" : "Live"}
+        />
+      </div>
+      <section className="panel">
+        <h2>Applications to be listed</h2>
+        <p className="section-copy">
+          Check each claim against the uploaded evidence and with the issuing
+          body before approving. Approval publishes the professional’s scope.
+        </p>
+        {admin.applications.length === 0 ? (
+          <p className="empty-inline">No applications awaiting review.</p>
+        ) : mode === "demo" ? (
+          admin.applications.map((a: any) => (
+            <div className="review-card" key={a.id}>
+              <div>
+                <h3>{a.name}</h3>
+                <span className="status">{a.status.replaceAll("_", " ")}</span>
+                <p>{a.bio}</p>
+              </div>
+              <div className="review-actions">
+                <button
+                  className="button secondary"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      await api("admin/review", "POST", {
+                        id: a.id,
+                        decision: "NEEDS_INFORMATION",
+                      });
+                      await reload();
+                      setNotice("Requested additional information.");
+                    })
+                  }
+                >
+                  Request information
+                </button>
+                <button
+                  className="text-button"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      await api("admin/review", "POST", {
+                        id: a.id,
+                        decision: "REJECTED",
+                      });
+                      await reload();
+                      setNotice("Preview application rejected.");
+                    })
+                  }
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))
+        ) : (
+          admin.applications.map((a: any) => (
+            <Application key={a.id} item={a} reload={reload} />
+          ))
+        )}
+      </section>
+      <section className="panel">
+        <h2>Recent activity</h2>
+        {admin.audit?.length ? (
+          admin.audit.slice(0, 8).map((a: any, i: number) => (
+            <div className="record" key={i}>
+              <Activity size={17} />
+              <strong>{a.action}</strong>
+              <span>{new Date(a.at).toLocaleString()}</span>
+            </div>
+          ))
+        ) : (
+          <p className="empty-inline">Review activity will appear here.</p>
+        )}
+      </section>
+    </Area>
+  );
+}

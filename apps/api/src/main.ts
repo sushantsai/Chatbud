@@ -31,6 +31,10 @@ import {
   shareInput,
   planInput,
   profileInput,
+  opsRequest,
+  promoCheck,
+  supportActions,
+  teamActions,
   mediaTypes,
   documentRequest,
   booking,
@@ -741,8 +745,68 @@ class HealthController {
     return this.data.health("plan_save", await this.data.actor(auth), input);
   }
 }
+@Controller()
+class OpsController {
+  constructor(@Inject(DataService) private readonly data: DataService) {}
+  // Runs one named action after validating its data against that action's schema.
+  private async run(
+    actions: Record<string, z.ZodTypeAny>,
+    body: unknown,
+    auth: string,
+  ) {
+    const { action, data } = parse(opsRequest, body);
+    const schema = Object.hasOwn(actions, action) ? actions[action] : null;
+    if (!schema) throw new HttpException("Unknown action", 404);
+    const input = parse(schema, data ?? {});
+    return this.data.rpc(
+      action,
+      await this.data.actor(auth),
+      input,
+      "chatbud_ops",
+    );
+  }
+  @Get("store/offers") offers(
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    if (this.data.preview(mode, session)) return { products: [] };
+    return this.data.rpc("storefront", null, {}, "chatbud_ops");
+  }
+  @Post("store/promo") promo(
+    @Body() body: unknown,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.data.rpc(
+      "promo_check",
+      null,
+      parse(promoCheck, body),
+      "chatbud_ops",
+    );
+  }
+  @Post("support") support(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.run(supportActions, body, auth);
+  }
+  // Roles are enforced per action inside the database gateway.
+  @Post("admin/ops") team(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.run(teamActions, body, auth);
+  }
+}
 @Module({
-  controllers: [AppController, CareController, HealthController],
+  controllers: [AppController, CareController, HealthController, OpsController],
   providers: [DataService],
 })
 class AppModule {}

@@ -245,3 +245,121 @@ export const order = z
   })
   .strict();
 export const profileInput = z.object({ displayName: text(80, 3) }).strict();
+
+// Support, booking oversight, catalogue and team administration all arrive as { action, data }.
+const none = z.object({}).strict();
+const uuid = z.string().uuid();
+const discountKind = z.enum(["PERCENT", "FIXED"]);
+const dayOrBlank = day.or(z.literal(""));
+const httpsUrl = z.string().url().startsWith("https://").max(300);
+const percentCap = (d: { kind: string; value: number }) =>
+  d.kind !== "PERCENT" || d.value <= 90;
+export const teamRoles = [
+  "VERIFICATION",
+  "CLINICAL_REVIEW",
+  "SUPPORT",
+  "CATALOG",
+  "SECURITY_ADMIN",
+] as const;
+export const opsRequest = z
+  .object({ action: z.string().max(40), data: z.unknown().optional() })
+  .strict();
+export const supportActions = {
+  tickets_mine: none,
+  ticket_create: z
+    .object({
+      category: z.enum([
+        "BOOKING",
+        "PROFESSIONAL",
+        "ORDER",
+        "ACCOUNT",
+        "PAYMENT",
+        "OTHER",
+      ]),
+      subject: text(160, 3),
+      body: text(4000, 10),
+      appointmentId: uuid.or(z.literal("")),
+      as: z.enum(["CLIENT", "PROFESSIONAL"]),
+    })
+    .strict(),
+  ticket_reply: z.object({ id: uuid, body: text(4000) }).strict(),
+} as const;
+export const teamActions = {
+  ops_dashboard: none,
+  tickets_queue: none,
+  ticket_update: z
+    .object({
+      id: uuid,
+      status: z
+        .enum(["OPEN", "IN_PROGRESS", "ESCALATED", "RESOLVED", "CLOSED"])
+        .optional(),
+      priority: z.enum(["NORMAL", "HIGH", "URGENT"]).optional(),
+      assign: z.enum(["me", "none"]).optional(),
+    })
+    .strict(),
+  ticket_note: z
+    .object({ id: uuid, body: text(4000), internal: z.boolean() })
+    .strict(),
+  bookings_list: none,
+  booking_cancel: z.object({ id: uuid, reason: text(500, 10) }).strict(),
+  booking_confirm: z.object({ id: uuid, meetingUrl: httpsUrl }).strict(),
+  catalogue: none,
+  product_save: z
+    .object({
+      id: uuid.optional(),
+      title: text(120, 3),
+      description: text(1000, 10),
+      category: z.enum([
+        "WELLNESS",
+        "NUTRITION",
+        "FITNESS",
+        "DEVICES",
+        "MENTAL_WELLNESS",
+        "PERSONAL_CARE",
+      ]),
+      price: z.number().min(0).max(1000000),
+    })
+    .strict(),
+  product_status: z
+    .object({ id: uuid, status: z.enum(["PUBLISHED", "DRAFT", "SUSPENDED"]) })
+    .strict(),
+  stock_receive: z
+    .object({ id: uuid, quantity: z.number().int().min(1).max(10000) })
+    .strict(),
+  offer_save: z
+    .object({
+      id: uuid.optional(),
+      title: text(80, 3),
+      kind: discountKind,
+      value: z.number().positive().max(1000000),
+      productId: uuid.or(z.literal("")),
+      endsOn: dayOrBlank,
+      active: z.boolean(),
+    })
+    .strict()
+    .refine(percentCap, "A percentage offer can be at most 90%"),
+  promo_save: z
+    .object({
+      id: uuid.optional(),
+      code: z.string().regex(/^[A-Za-z0-9]{4,20}$/),
+      kind: discountKind,
+      value: z.number().positive().max(1000000),
+      minSubtotal: z.number().min(0).max(1000000),
+      endsOn: dayOrBlank,
+      maxRedemptions: z.number().int().positive().or(z.literal("")),
+      active: z.boolean(),
+    })
+    .strict()
+    .refine(percentCap, "A percentage code can be at most 90%"),
+  team_list: none,
+  team_role_set: z
+    .object({
+      email: z.string().email().max(200),
+      role: z.enum(teamRoles),
+      grant: z.boolean(),
+    })
+    .strict(),
+} as const;
+export const promoCheck = z
+  .object({ code: text(20, 4), subtotal: z.number().min(0).max(10000000) })
+  .strict();

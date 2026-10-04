@@ -13,6 +13,7 @@ Migrations:
 7. `20261004000300_care_workflows.sql`: fitness professions, appointment meeting links and idempotency, bookable-slot calculation, and the server-only `public.chatbud_care` RPC for review, practice setup and appointment requests.
 8. `20261004000400_my_health.sql`: goals, care plans, per-area sharing grants tied to recorded consent, and the server-only `public.chatbud_health` RPC. The consent wording in `core.consent_version` needs legal review.
 9. `20261004000500_directory_profiles.sql`: the catalog lists approved professionals before they offer a service; applicants and approved professionals set their public display name.
+10. `20261004000600_admin_operations.sql`: support tickets and messages, product categories, offers, promo codes, and the server-only `public.chatbud_ops` RPC for the storefront, grievances, booking oversight, catalogue management and team roles.
 
 All migrations have been applied to this project. Browser roles have no direct access to the application schemas or gateway RPC. The RPC permits only the service role; NestJS verifies the user token and supplies the authenticated actor. This first implementation uses the Supabase service-role key in the backend, so protecting that environment is essential.
 
