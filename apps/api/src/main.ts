@@ -25,6 +25,8 @@ import {
   serviceInput,
   availabilityInput,
   appointmentDecision,
+  appointmentProposal,
+  rescheduleResponse,
   reviewDecision,
   documentRef,
   goalInput,
@@ -41,6 +43,7 @@ import {
   order,
 } from "./schemas";
 import helmet from "helmet";
+import { createMeetingLink, videoProvider } from "./meeting";
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -297,6 +300,7 @@ class AppController {
       status: "ok",
       service: "chatbud-api",
       demoAvailable: this.data.demoEnabled,
+      videoProvider: videoProvider(),
     };
   }
   @Get("catalog") async catalog(
@@ -669,11 +673,45 @@ class CareController {
   ) {
     this.data.liveOnly(mode, session);
     const input = parse(appointmentDecision, body);
+    const actor = await this.data.actor(auth);
+    const meetingUrl =
+      input.decision === "CONFIRM"
+        ? input.meetingUrl || (await createMeetingLink()).url
+        : undefined;
+    return this.data.care("provider_appointment_decide", actor, {
+      ...input,
+      meetingUrl,
+    });
+  }
+  @Post("provider/reschedule") async propose(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(appointmentProposal, body);
     return this.data.care(
-      "provider_appointment_decide",
+      "provider_appointment_propose",
       await this.data.actor(auth),
       input,
     );
+  }
+  @Post("appointments/reschedule") async respond(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(rescheduleResponse, body);
+    const actor = await this.data.actor(auth);
+    // Accepting finalises the consultation, so it needs a link if it has none yet;
+    // the gateway keeps an existing link and ignores this one.
+    return this.data.care("appointment_reschedule_respond", actor, {
+      ...input,
+      ...(input.accept ? { meetingUrl: (await createMeetingLink()).url } : {}),
+    });
   }
   @Post("admin/document") async evidence(
     @Body() body: unknown,
@@ -758,12 +796,10 @@ class OpsController {
     const schema = Object.hasOwn(actions, action) ? actions[action] : null;
     if (!schema) throw new HttpException("Unknown action", 404);
     const input = parse(schema, data ?? {});
-    return this.data.rpc(
-      action,
-      await this.data.actor(auth),
-      input,
-      "chatbud_ops",
-    );
+    const actor = await this.data.actor(auth);
+    if (action === "booking_confirm" && !input.meetingUrl)
+      input.meetingUrl = (await createMeetingLink()).url;
+    return this.data.rpc(action, actor, input, "chatbud_ops");
   }
   @Get("store/offers") offers(
     @Query("mode") mode: string,

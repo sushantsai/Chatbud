@@ -46,6 +46,8 @@ async function proxy(
       "appointments/slots",
       "appointments",
       "appointments/cancel",
+      "appointments/reschedule",
+      "provider/reschedule",
       "provider/workspace",
       "provider/service",
       "provider/availability",

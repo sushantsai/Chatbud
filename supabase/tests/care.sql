@@ -104,6 +104,32 @@ BEGIN
  result := public.chatbud_care('appointments_mine',client)->'appointments'->0;
  IF result->>'status'<>'CONFIRMED' OR result->>'meetingUrl'<>'https://meet.example.invalid/x' THEN RAISE EXCEPTION 'Client cannot see the confirmed appointment'; END IF;
  IF jsonb_array_length(public.chatbud_care('provider_workspace',applicant)->'appointments')<>1 THEN RAISE EXCEPTION 'Professional cannot see the appointment'; END IF;
+ -- Rescheduling: the professional proposes, the client finalises.
+ failed := false;
+ BEGIN PERFORM public.chatbud_care('provider_appointment_propose',applicant,jsonb_build_object('id',appt,'startsAt',slot));
+ EXCEPTION WHEN raise_exception THEN failed := true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Proposed the same time'; END IF;
+ failed := false;
+ BEGIN PERFORM public.chatbud_care('appointment_reschedule_respond',client,jsonb_build_object('id',appt,'accept',true));
+ EXCEPTION WHEN raise_exception THEN failed := true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Accepted a proposal that does not exist'; END IF;
+ PERFORM public.chatbud_care('provider_appointment_propose',applicant,jsonb_build_object('id',appt,'startsAt',slot+interval '1 day 3 hours'));
+ IF public.chatbud_care('appointments_mine',client)->'appointments'->0->>'proposedStartsAt' IS NULL THEN RAISE EXCEPTION 'Client cannot see the proposed time'; END IF;
+ failed := false;
+ BEGIN PERFORM public.chatbud_care('appointment_reschedule_respond',other,jsonb_build_object('id',appt,'accept',true));
+ EXCEPTION WHEN raise_exception THEN failed := true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Another user accepted the proposal'; END IF;
+ PERFORM public.chatbud_care('appointment_reschedule_respond',client,jsonb_build_object('id',appt,'accept',false));
+ IF EXISTS(SELECT 1 FROM care.appointment WHERE id=appt AND (proposed_starts_at IS NOT NULL OR starts_at<>slot)) THEN RAISE EXCEPTION 'Declining changed the appointment'; END IF;
+ PERFORM public.chatbud_care('provider_appointment_propose',applicant,jsonb_build_object('id',appt,'startsAt',slot+interval '1 day 3 hours'));
+ PERFORM public.chatbud_care('appointment_reschedule_respond',client,jsonb_build_object('id',appt,'accept',true,'meetingUrl','https://meet.example.invalid/ignored'));
+ IF NOT EXISTS(SELECT 1 FROM care.appointment WHERE id=appt AND status='CONFIRMED' AND starts_at=slot+interval '1 day 3 hours'
+   AND ends_at-starts_at=interval '50 minutes' AND proposed_starts_at IS NULL AND meeting_url='https://meet.example.invalid/x') THEN
+  RAISE EXCEPTION 'Accepting did not finalise the new time';
+ END IF;
+ IF jsonb_array_length(public.chatbud_care('slots',NULL,jsonb_build_object('serviceId',service_id,'date',day))->'slots')<>3 THEN
+  RAISE EXCEPTION 'Original time was not released after the move';
+ END IF;
  failed := false;
  BEGIN PERFORM public.chatbud_care('appointment_cancel',other,jsonb_build_object('id',appt)); EXCEPTION WHEN raise_exception THEN failed := true; END;
  IF NOT failed THEN RAISE EXCEPTION 'Another user cancelled the appointment'; END IF;

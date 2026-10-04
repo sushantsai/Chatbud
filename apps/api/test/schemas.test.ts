@@ -4,6 +4,8 @@ import { test } from "node:test";
 import {
   application,
   appointmentDecision,
+  appointmentProposal,
+  rescheduleResponse,
   appointmentRequest,
   availabilityInput,
   goalInput,
@@ -51,14 +53,15 @@ test("slot queries take a calendar day", () => {
   rejects(slotQuery, { serviceId: id, date: "05/10/2026" });
 });
 
-test("confirming an appointment needs an https meeting link", () => {
+test("confirming an appointment takes an optional https meeting link", () => {
   accepts(appointmentDecision, {
     id,
     decision: "CONFIRM",
     meetingUrl: "https://meet.example/abc",
   });
   accepts(appointmentDecision, { id, decision: "DECLINE" });
-  rejects(appointmentDecision, { id, decision: "CONFIRM" });
+  // Without a link the server creates one.
+  accepts(appointmentDecision, { id, decision: "CONFIRM" });
   rejects(appointmentDecision, {
     id,
     decision: "CONFIRM",
@@ -337,4 +340,16 @@ test("team actions as the admin portal sends them", () => {
     grant: true,
   });
   accepts(promoCheck, { code: "WELCOME10", subtotal: 1500 });
+});
+
+test("rescheduling requests as the portals send them", () => {
+  // The professional's form builds the time from Nepal-time inputs and sends it as UTC.
+  accepts(appointmentProposal, {
+    id,
+    startsAt: new Date("2026-10-08T14:30:00+05:45").toISOString(),
+  });
+  rejects(appointmentProposal, { id, startsAt: "2026-10-08 14:30" });
+  accepts(rescheduleResponse, { id, accept: true });
+  rejects(rescheduleResponse, { id, accept: "yes" });
+  accepts(teamActions.booking_confirm, { id });
 });

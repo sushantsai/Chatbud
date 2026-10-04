@@ -158,17 +158,23 @@ export const availabilityInput = z
       .max(21),
   })
   .strict();
+// A meeting link is optional: the server creates one when the professional does not supply their own.
 export const appointmentDecision = z
   .object({
     id: z.string().uuid(),
     decision: z.enum(["CONFIRM", "DECLINE"]),
     meetingUrl: z.string().url().startsWith("https://").max(300).optional(),
   })
-  .strict()
-  .refine(
-    (d) => d.decision !== "CONFIRM" || !!d.meetingUrl,
-    "Add the meeting link for this appointment",
-  );
+  .strict();
+export const appointmentProposal = z
+  .object({
+    id: z.string().uuid(),
+    startsAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export const rescheduleResponse = z
+  .object({ id: z.string().uuid(), accept: z.boolean() })
+  .strict();
 export const reviewDecision = z
   .object({
     caseId: z.string().uuid(),
@@ -302,7 +308,9 @@ export const teamActions = {
     .strict(),
   bookings_list: none,
   booking_cancel: z.object({ id: uuid, reason: text(500, 10) }).strict(),
-  booking_confirm: z.object({ id: uuid, meetingUrl: httpsUrl }).strict(),
+  booking_confirm: z
+    .object({ id: uuid, meetingUrl: httpsUrl.optional() })
+    .strict(),
   catalogue: none,
   product_save: z
     .object({
