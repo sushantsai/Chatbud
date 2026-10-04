@@ -9,6 +9,7 @@ Migrations:
 3. `20261003000300_active_provider_catalog.sql`: exclude suspended/deactivated provider accounts from published listings.
 4. `20261003000400_unambiguous_profession.sql`: unambiguous PL/pgSQL application category variable.
 5. `20261004000100_pin_trigger_search_path.sql`: fixed search path for the stock and ledger trigger functions.
+6. `20261004000200_provider_application_details.sql`: structured practitioner application stored on the verification case, and the private `credential-evidence` storage bucket.
 
 All migrations have been applied to this project. Browser roles have no direct access to the application schemas or gateway RPC. The RPC permits only the service role; NestJS verifies the user token and supplies the authenticated actor. This first implementation uses the Supabase service-role key in the backend, so protecting that environment is essential.
 

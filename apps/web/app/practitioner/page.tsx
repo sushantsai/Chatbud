@@ -1,132 +1,115 @@
 "use client";
-import { Clock, ShieldCheck } from "lucide-react";
+import { Check, FileText, ShieldCheck, Timer } from "lucide-react";
 import { useApp } from "../_components/app";
-import { SignInPrompt, professions } from "../_components/ui";
+import { SignInPrompt } from "../_components/ui";
+import { ApplicationForm } from "./application";
+const stages = [
+  ["Submitted", "We have your application and documents."],
+  ["Under review", "We verify your identity, qualifications and registration."],
+  ["Decision", "You will hear from us by email with the outcome."],
+];
 export default function Practitioner() {
-  const {
-    mode,
-    token,
-    dashboard,
-    setDashboard,
-    api,
-    run,
-    busy,
-    setNotice,
-    openAuth,
-  } = useApp();
+  const { mode, token, dashboard, openAuth } = useApp();
   if (mode === "live" && !token)
     return (
-      <SignInPrompt open={openAuth}>
-        Sign in to apply and manage your professional application.
-      </SignInPrompt>
-    );
-  return (
-    <div className="application-layout">
-      <section className="panel">
-        <h2>Join the professional network</h2>
-        <p className="section-copy">
-          Tell us about your practice. This is the first step; identity,
-          qualifications, and relevant registration must be reviewed before your
-          profile can be published.
-        </p>
-        {dashboard.providerApplication && (
-          <div className="application-status">
-            <Clock size={19} />
-            <div>
-              <strong>
-                Application{" "}
-                {dashboard.providerApplication.status
-                  .toLowerCase()
-                  .replaceAll("_", " ")}
-              </strong>
-              <p>Your profile is not yet published.</p>
-            </div>
-          </div>
-        )}
-        {mode === "demo" && (
-          <p className="form-note">
-            Use fictional information in this preview. Submit your real
-            application in Live database mode.
+      <>
+        <section className="apply-intro">
+          <h2>Join Chatbud as a verified professional</h2>
+          <p>
+            Every professional on Chatbud is verified before their profile is
+            published. The application takes about 12 minutes.
           </p>
-        )}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const f = new FormData(e.currentTarget);
-            run(async () => {
-              await api("providers/applications", "POST", {
-                profession: f.get("profession"),
-                bio: f.get("bio"),
-                experience: f.get("experience"),
-              });
-              setNotice(
-                mode === "demo"
-                  ? "Preview application submitted."
-                  : "Application submitted for review.",
-              );
-              setDashboard(await api("me"));
-            });
-          }}
-        >
-          <label>
-            Professional category
-            <select name="profession" required>
-              {Object.entries(professions).map(([id, label]) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            About your practice
-            <textarea
-              name="bio"
-              required
-              minLength={30}
-              maxLength={1500}
-              placeholder="Your approach, services, languages, and who you work with…"
-              rows={4}
-            />
-          </label>
-          <label>
-            Qualifications and experience
-            <textarea
-              name="experience"
-              required
-              minLength={10}
-              maxLength={1000}
-              placeholder="Relevant degrees, training, registration, and practice experience…"
-              rows={3}
-            />
-          </label>
-          <button className="button" disabled={busy}>
-            {busy ? "Submitting…" : "Submit application"}
-          </button>
-        </form>
-      </section>
-      <aside className="onboarding-note">
-        <ShieldCheck size={27} />
-        <h2>Built around trust.</h2>
+          <ul>
+            <li>
+              <FileText size={18} />
+              <span>
+                <strong>Have these ready</strong>
+                Government photo ID, your highest qualification certificate, and
+                your registration certificate if your profession has one.
+              </span>
+            </li>
+            <li>
+              <ShieldCheck size={18} />
+              <span>
+                <strong>What we check</strong>
+                Identity, qualifications and registration, confirmed with the
+                bodies that issued them.
+              </span>
+            </li>
+            <li>
+              <Timer size={18} />
+              <span>
+                <strong>What happens next</strong>A reviewer assesses your
+                application and emails you the outcome.
+              </span>
+            </li>
+          </ul>
+        </section>
+        <SignInPrompt open={openAuth}>
+          Sign in or create an account to start your application.
+        </SignInPrompt>
+      </>
+    );
+  const status = dashboard.providerApplication?.status;
+  if (status && !["APPLIED", "REJECTED"].includes(status)) {
+    const stage = status === "UNDER_REVIEW" ? 1 : 2;
+    return (
+      <section className="panel application-progress">
+        <h2>
+          {status === "APPROVED"
+            ? "Your application is approved"
+            : status === "SUSPENDED"
+              ? "Your profile is suspended"
+              : "Your application is being reviewed"}
+        </h2>
+        <p className="section-copy">
+          {status === "APPROVED"
+            ? "Your professional scope has been approved."
+            : status === "SUSPENDED"
+              ? "Contact Chatbud support to discuss your profile."
+              : "Your profile is not published yet. You do not need to do anything unless we contact you."}
+        </p>
         <ol>
-          <li>
-            <b>Apply</b>
-            <span>Share your professional background.</span>
-          </li>
-          <li>
-            <b>Verify</b>
-            <span>Identity, qualifications, and registration review.</span>
-          </li>
-          <li>
-            <b>Set up</b>
-            <span>Define services and availability after approval.</span>
-          </li>
-          <li>
-            <b>Practice</b>
-            <span>Connect with clients within your approved scope.</span>
-          </li>
+          {stages.map(([title, copy], i) => (
+            <li
+              key={title}
+              className={
+                i < stage || status === "APPROVED"
+                  ? "done"
+                  : i === stage
+                    ? "current"
+                    : ""
+              }
+            >
+              <span className="step-mark">
+                {i < stage || status === "APPROVED" ? (
+                  <Check size={14} strokeWidth={3} />
+                ) : (
+                  i + 1
+                )}
+              </span>
+              <div>
+                <strong>{title}</strong>
+                <p>{copy}</p>
+              </div>
+            </li>
+          ))}
         </ol>
-      </aside>
-    </div>
+      </section>
+    );
+  }
+  return (
+    <>
+      {status === "REJECTED" && (
+        <div className="application-status">
+          <ShieldCheck size={19} />
+          <div>
+            <strong>Your previous application was not approved</strong>
+            <p>You can update your details and apply again.</p>
+          </div>
+        </div>
+      )}
+      <ApplicationForm />
+    </>
   );
 }

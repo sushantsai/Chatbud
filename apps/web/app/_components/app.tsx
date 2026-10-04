@@ -2,7 +2,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 import {
   Activity,
   ArrowUpRight,
@@ -25,15 +24,8 @@ import {
   X,
 } from "lucide-react";
 import { features } from "../_lib/features";
+import { supabase } from "../_lib/supabase";
 import { Dialog, money } from "./ui";
-const supabase =
-  process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-    ? createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-      )
-    : null;
 const tabs = [
   { href: "/", label: "Home", icon: House },
   { href: "/professionals", label: "Professionals", icon: Users },

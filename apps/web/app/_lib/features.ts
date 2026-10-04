@@ -25,10 +25,14 @@ function resolve(
   fallback: FeatureStatus,
   override: string | undefined,
 ): FeatureStatus {
-  // TODO(human): decide how an override is applied. `override` is the raw value
-  // for this feature (possibly misspelt), and `regulated` lists verticals that
-  // must not be switched to "live" by configuration alone.
-  return fallback;
+  if (override === undefined) return fallback;
+  if (!["live", "soon", "off"].includes(override)) {
+    console.warn(`Ignoring unknown status "${override}" for ${feature}`);
+    return fallback;
+  }
+  // Launching a regulated vertical is a code change, never a setting.
+  if (override === "live" && regulated.includes(feature)) return fallback;
+  return override as FeatureStatus;
 }
 const overrides = Object.fromEntries(
   (process.env.NEXT_PUBLIC_CHATBUD_FEATURES || "")
