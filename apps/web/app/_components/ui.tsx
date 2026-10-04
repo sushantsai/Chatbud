@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useId, useRef } from "react";
 import Link from "next/link";
-import { Clock, UserRound, X } from "lucide-react";
+import { Clock, Phone, UserRound, X } from "lucide-react";
 export const money = (value: number) =>
   `NPR ${Number(value).toLocaleString("en-NP")}`;
 export const professions: Record<string, string> = {
@@ -139,5 +139,21 @@ export function ComingSoon({
         Back to home
       </Link>
     </section>
+  );
+}
+// Shown wherever someone may arrive in distress.
+export function Urgent() {
+  return (
+    <div className="care-note urgent">
+      <Phone size={21} />
+      <div>
+        <strong>Need to talk to someone right now?</strong>
+        <p>
+          Chatbud is not an emergency service. If you are thinking of harming
+          yourself, call Nepal’s free suicide prevention helpline on{" "}
+          <a href="tel:1166">1166</a>, or go to the nearest hospital.
+        </p>
+      </div>
+    </div>
   );
 }

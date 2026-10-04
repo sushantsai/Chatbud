@@ -75,8 +75,39 @@ BEGIN
  IF jsonb_array_length(result->'sharedPlans')<>0 OR jsonb_array_length(result->'sharedGoals')<>0 THEN RAISE EXCEPTION 'Records still visible after sharing stopped'; END IF;
  IF NOT EXISTS(SELECT 1 FROM core.consent_acceptance WHERE user_id=client AND withdrawn_at IS NOT NULL) THEN RAISE EXCEPTION 'Consent withdrawal not recorded'; END IF;
 
+ -- Daily check-ins: owner only, today or yesterday, once per day.
+ PERFORM public.chatbud_health('goal_checkin',client,jsonb_build_object('id',goal_id,'done',true));
+ PERFORM public.chatbud_health('goal_checkin',client,jsonb_build_object('id',goal_id,'done',true));
+ PERFORM public.chatbud_health('goal_checkin',client,jsonb_build_object('id',goal_id,'done',true,'date',((now() AT TIME ZONE 'Asia/Kathmandu')::date-1)::text));
+ result := (SELECT g FROM jsonb_array_elements(public.chatbud_health('health_mine',client)->'goals') g WHERE g->>'id'=goal_id::text);
+ IF (result->>'total')::int<>2 OR jsonb_array_length(result->'days')<>2 OR (result->>'weeklyTarget')::int<>7 THEN RAISE EXCEPTION 'Check-ins counted wrongly: %',result; END IF;
+ failed := false;
+ BEGIN PERFORM public.chatbud_health('goal_checkin',client,jsonb_build_object('id',goal_id,'done',true,'date',((now() AT TIME ZONE 'Asia/Kathmandu')::date-2)::text));
+ EXCEPTION WHEN raise_exception THEN failed := true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'An old day was marked'; END IF;
+ failed := false;
+ BEGIN PERFORM public.chatbud_health('goal_checkin',stranger,jsonb_build_object('id',goal_id,'done',true));
+ EXCEPTION WHEN raise_exception THEN failed := true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Another user marked a goal'; END IF;
+ PERFORM public.chatbud_health('goal_checkin',client,jsonb_build_object('id',goal_id,'done',false));
+ result := (SELECT g FROM jsonb_array_elements(public.chatbud_health('health_mine',client)->'goals') g WHERE g->>'id'=goal_id::text);
+ IF (result->>'total')::int<>1 THEN RAISE EXCEPTION 'Check-in was not undone'; END IF;
+ goal_id := (public.chatbud_health('goal_save',client,'{"domain":"fitness","title":"Strength workout","action":"Do a strength workout","weeklyTarget":3,"template":"strength-3"}'::jsonb)->>'id')::uuid;
+ IF NOT EXISTS(SELECT 1 FROM care.goal WHERE id=goal_id AND weekly_target=3 AND template_code='strength-3' AND action='Do a strength workout') THEN RAISE EXCEPTION 'Goal template fields not saved'; END IF;
+
+ -- Weekly wellbeing note: one per week, private to its owner.
+ PERFORM public.chatbud_health('wellbeing_save',client,'{"mood":2,"sleep":3,"energy":4}'::jsonb);
+ PERFORM public.chatbud_health('wellbeing_save',client,'{"mood":4,"sleep":3,"energy":4}'::jsonb);
+ result := public.chatbud_health('health_mine',client)->'wellbeing';
+ IF jsonb_array_length(result)<>1 OR (result->0->>'mood')::int<>4 THEN RAISE EXCEPTION 'Weekly note is wrong: %',result; END IF;
+ IF public.chatbud_health('provider_clients',dietitian)::text LIKE '%wellbeing%' THEN RAISE EXCEPTION 'Weekly note leaked to a professional'; END IF;
+ failed := false;
+ BEGIN PERFORM public.chatbud_health('wellbeing_save',client,'{"mood":9,"sleep":3,"energy":4}'::jsonb);
+ EXCEPTION WHEN check_violation THEN failed := true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Out-of-range rating saved'; END IF;
+
  PERFORM public.chatbud_health('goal_save',client,jsonb_build_object('id',goal_id,'status','DONE'));
  IF NOT EXISTS(SELECT 1 FROM care.goal WHERE id=goal_id AND status='DONE' AND completed_at IS NOT NULL) THEN RAISE EXCEPTION 'Goal not completed'; END IF;
 END $test$;
 ROLLBACK;
-SELECT 'PASS: goals, scope-limited plans, client view, default isolation between areas, consent-gated sharing and revocation; test records rolled back.' AS result;
+SELECT 'PASS: goals, daily check-ins, private weekly notes, scope-limited plans, client view, default isolation between areas, consent-gated sharing and revocation; test records rolled back.' AS result;

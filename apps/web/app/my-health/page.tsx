@@ -1,10 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
+  Award,
   CalendarDays,
   Check,
-  Heart,
   Package,
   Plus,
   ShoppingBag,
@@ -13,6 +13,16 @@ import {
 } from "lucide-react";
 import { useApp } from "../_components/app";
 import {
+  Achievements,
+  GoalCard,
+  GoalPicker,
+  TodayList,
+  WeeklyCheckin,
+  activeGoals,
+  useGoalActions,
+  useHealth,
+} from "../_components/goals";
+import {
   SignInPrompt,
   Summary,
   careAreas,
@@ -20,55 +30,20 @@ import {
   professions,
 } from "../_components/ui";
 import { features } from "../_lib/features";
+import { areaName } from "../_lib/needs";
 const areas = careAreas.filter((a) => features[a.id] === "live");
-const emptyGoal = { domain: "", title: "", targetDate: "" };
 export default function MyHealth() {
-  const {
-    mode,
-    token,
-    dashboard,
-    api,
-    run,
-    busy,
-    setNotice,
-    setError,
-    openAuth,
-  } = useApp();
+  const { mode, token, dashboard, api, busy, openAuth } = useApp();
   const live = mode === "live";
-  const [health, setHealth] = useState<any>(null),
-    [goal, setGoal] = useState(emptyGoal);
-  const reload = async () => setHealth(await api("health/mine"));
-  useEffect(() => {
-    if (!live || !token) return;
-    let active = true;
-    api("health/mine")
-      .then((data) => {
-        if (active) setHealth(data);
-      })
-      .catch((e) => {
-        if (active && e.name !== "AbortError") {
-          setError(e.message);
-          setHealth({ plans: [], goals: [], professionals: [], consent: "" });
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [live, token]);
+  const { health, act } = useHealth();
+  const [adding, setAdding] = useState("");
+  const { setStatus } = useGoalActions(act);
   if (live && !token)
     return (
       <SignInPrompt open={openAuth}>
         Sign in to see your plans, goals and purchases.
       </SignInPrompt>
     );
-  const act = (action: () => Promise<unknown>, notice: string) =>
-    run(async () => {
-      await action();
-      await reload();
-      setNotice(notice);
-    });
-  const activeGoals =
-    health?.goals.filter((g: any) => g.status === "ACTIVE").length ?? 0;
   return (
     <>
       <div className="summary-grid">
@@ -83,33 +58,86 @@ export default function MyHealth() {
         <Summary
           icon={live ? Target : ShoppingBag}
           label={live ? "Active goals" : "Orders"}
-          value={live ? activeGoals : dashboard.orders.length}
+          value={live ? activeGoals(health).length : dashboard.orders.length}
         />
-        <Summary icon={Heart} label="Your next step" value="At your pace" />
+        <Summary
+          icon={Award}
+          label="Days done"
+          value={(health?.goals || []).reduce(
+            (sum: number, g: any) => sum + g.total,
+            0,
+          )}
+        />
       </div>
       {live && !health && (
         <div className="loading" role="status">
           Loading your health records…
         </div>
       )}
+      {live && health && <TodayList health={health} act={act} />}
       {live &&
         health &&
         areas.map((area) => {
           const plans = health.plans.filter((p: any) => p.domain === area.id);
           const goals = health.goals.filter((g: any) => g.domain === area.id);
-          const adding = goal.domain === area.id;
+          const active = goals.filter((g: any) => g.status === "ACTIVE");
+          const achieved = goals.filter((g: any) => g.status === "DONE");
           return (
-            <section className="panel compartment" key={area.id}>
+            <section
+              className="panel compartment"
+              data-area={area.id}
+              key={area.id}
+            >
               <div className="panel-heading">
-                <h2>{area.label}</h2>
-                {!adding && (
-                  <button
-                    onClick={() => setGoal({ ...emptyGoal, domain: area.id })}
-                  >
+                <h2>
+                  {areaName(area.id)} <small>{area.label}</small>
+                </h2>
+                {adding !== area.id && (
+                  <button onClick={() => setAdding(area.id)}>
                     <Plus size={15} /> Add a goal
                   </button>
                 )}
               </div>
+              <h3>Your goals</h3>
+              {active.length === 0 && adding !== area.id && (
+                <p className="empty-inline">
+                  No goals here yet. Add one small step you can repeat.
+                </p>
+              )}
+              {active.map((g: any) => (
+                <GoalCard goal={g} today={health.today} act={act} key={g.id} />
+              ))}
+              {adding === area.id && (
+                <GoalPicker
+                  area={area.id}
+                  health={health}
+                  act={act}
+                  close={() => setAdding("")}
+                />
+              )}
+              {achieved.length > 0 && (
+                <details className="achieved">
+                  <summary>
+                    {achieved.length} achieved{" "}
+                    {achieved.length === 1 ? "goal" : "goals"}
+                  </summary>
+                  {achieved.map((g: any) => (
+                    <div className="goal done" key={g.id}>
+                      <span>
+                        {g.title}
+                        <small>{g.total} days done</small>
+                      </span>
+                      <button
+                        className="text-button"
+                        disabled={busy}
+                        onClick={() => setStatus(g, "ACTIVE", "Goal reopened.")}
+                      >
+                        Start again
+                      </button>
+                    </div>
+                  ))}
+                </details>
+              )}
               <h3>Plans from your professionals</h3>
               {plans.length === 0 ? (
                 <p className="empty-inline">
@@ -132,126 +160,11 @@ export default function MyHealth() {
                   </details>
                 ))
               )}
-              <h3>Your goals</h3>
-              {goals.length === 0 && !adding && (
-                <p className="empty-inline">
-                  Set a goal to keep track of what you are working towards.
-                </p>
-              )}
-              {goals.map((g: any) => (
-                <div
-                  className={`goal${g.status === "DONE" ? " done" : ""}`}
-                  key={g.id}
-                >
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={g.status === "DONE"}
-                      disabled={busy}
-                      onChange={(e) =>
-                        act(
-                          () =>
-                            api("health/goal", "POST", {
-                              id: g.id,
-                              status: e.target.checked ? "DONE" : "ACTIVE",
-                            }),
-                          e.target.checked
-                            ? "Goal completed."
-                            : "Goal reopened.",
-                        )
-                      }
-                    />
-                    <span>
-                      {g.title}
-                      {g.targetDate && (
-                        <small>
-                          by{" "}
-                          {new Date(g.targetDate).toLocaleDateString("en-NP", {
-                            dateStyle: "medium",
-                          })}
-                        </small>
-                      )}
-                    </span>
-                  </label>
-                  <button
-                    className="text-button"
-                    disabled={busy}
-                    onClick={() =>
-                      act(
-                        () =>
-                          api("health/goal", "POST", {
-                            id: g.id,
-                            status: "ARCHIVED",
-                          }),
-                        "Goal removed.",
-                      )
-                    }
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-              {adding && (
-                <form
-                  className="goal-form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    act(async () => {
-                      await api("health/goal", "POST", {
-                        domain: area.id,
-                        title: goal.title.trim(),
-                        note: "",
-                        targetDate: goal.targetDate,
-                      });
-                      setGoal(emptyGoal);
-                    }, "Goal added.");
-                  }}
-                >
-                  <div className="field">
-                    <label htmlFor={`goal-${area.id}`}>Goal</label>
-                    <input
-                      id={`goal-${area.id}`}
-                      required
-                      minLength={3}
-                      maxLength={160}
-                      autoFocus
-                      value={goal.title}
-                      onChange={(e) =>
-                        setGoal({ ...goal, title: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor={`goal-date-${area.id}`}>
-                      Target date<span className="optional">Optional</span>
-                    </label>
-                    <input
-                      id={`goal-date-${area.id}`}
-                      type="date"
-                      min={new Date().toISOString().slice(0, 10)}
-                      value={goal.targetDate}
-                      onChange={(e) =>
-                        setGoal({ ...goal, targetDate: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="request-actions">
-                    <button className="button small" disabled={busy}>
-                      Save goal
-                    </button>
-                    <button
-                      type="button"
-                      className="text-button"
-                      onClick={() => setGoal(emptyGoal)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
             </section>
           );
         })}
+      {live && health && <Achievements health={health} />}
+      {live && health && <WeeklyCheckin health={health} act={act} />}
       {live && health && (
         <section className="panel">
           <h2>Who can see what</h2>

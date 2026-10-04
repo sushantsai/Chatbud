@@ -8,6 +8,7 @@ import {
   rescheduleResponse,
   appointmentRequest,
   availabilityInput,
+  goalCheckin,
   goalInput,
   planInput,
   profileInput,
@@ -17,6 +18,7 @@ import {
   slotQuery,
   supportActions,
   teamActions,
+  wellbeingInput,
 } from "../src/schemas";
 const id = "7b0f7c0e-6a4e-4a53-9f0e-0c2f6a1d9b11";
 const accepts = (
@@ -117,6 +119,28 @@ test("review decisions, goals, plans and profile names", () => {
     targetDate: "2026-11-01",
   });
   accepts(goalInput, { id, status: "DONE" });
+  accepts(goalInput, {
+    domain: "fitness",
+    title: "Strength workout",
+    note: "",
+    targetDate: "",
+    action: "Do a strength workout",
+    weeklyTarget: 3,
+    template: "strength-3",
+  });
+  rejects(goalInput, {
+    domain: "fitness",
+    title: "Strength workout",
+    note: "",
+    targetDate: "",
+    weeklyTarget: 8,
+  });
+  accepts(goalCheckin, { id, done: true });
+  accepts(goalCheckin, { id, done: false, date: "2026-10-04" });
+  rejects(goalCheckin, { id });
+  accepts(wellbeingInput, { mood: 1, sleep: 5, energy: 3 });
+  rejects(wellbeingInput, { mood: 0, sleep: 5, energy: 3 });
+  rejects(wellbeingInput, { mood: 3, sleep: 5 });
   rejects(goalInput, {
     domain: "dental",
     title: "Floss",

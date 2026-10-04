@@ -29,8 +29,10 @@ import {
   rescheduleResponse,
   reviewDecision,
   documentRef,
+  goalCheckin,
   goalInput,
   shareInput,
+  wellbeingInput,
   planInput,
   profileInput,
   opsRequest,
@@ -44,6 +46,7 @@ import {
 } from "./schemas";
 import helmet from "helmet";
 import { createMeetingLink, videoProvider } from "./meeting";
+import { progress, type GoalDays } from "./progress";
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -742,7 +745,41 @@ class HealthController {
     @Headers("x-chatbud-demo-session") session: string,
   ) {
     this.data.liveOnly(mode, session);
-    return this.data.health("health_mine", await this.data.actor(auth));
+    const mine = await this.data.health(
+      "health_mine",
+      await this.data.actor(auth),
+    );
+    return {
+      ...mine,
+      goals: mine.goals.map((goal: GoalDays) => ({
+        ...goal,
+        progress: progress(goal, mine.today),
+      })),
+    };
+  }
+  @Post("health/checkin") async checkin(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(goalCheckin, body);
+    return this.data.health("goal_checkin", await this.data.actor(auth), input);
+  }
+  @Post("health/wellbeing") async wellbeing(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(wellbeingInput, body);
+    return this.data.health(
+      "wellbeing_save",
+      await this.data.actor(auth),
+      input,
+    );
   }
   @Post("health/goal") async goal(
     @Body() body: unknown,
