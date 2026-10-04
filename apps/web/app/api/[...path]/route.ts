@@ -41,6 +41,7 @@ async function proxy(
       "catalog",
       "me",
       "providers/applications",
+      "providers/documents",
       "appointments/holds",
       "orders",
       "admin/overview",

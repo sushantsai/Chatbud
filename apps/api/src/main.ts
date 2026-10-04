@@ -28,11 +28,120 @@ const profession = z.enum([
   "nutritionist",
   "dietitian",
 ]);
+const text = (max: number, min = 1) => z.string().trim().min(min).max(max);
+const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const documentKind = z.enum([
+  "identity",
+  "qualification",
+  "registration",
+  "experience",
+  "photo",
+]);
+// Everything a reviewer needs to verify the applicant with the issuing bodies.
+const applicationDetails = z
+  .object({
+    practice: z
+      .object({
+        title: text(120),
+        yearsExperience: z.number().int().min(0).max(60),
+        setting: z.enum(["independent", "clinic", "hospital", "organization"]),
+        workplace: text(160, 0),
+        city: text(80),
+        modes: z.array(z.enum(["online", "in_person"])).min(1).max(2),
+        languages: z.array(text(40)).min(1).max(8),
+        focus: text(300, 0),
+        clientGroups: z.array(text(40)).max(6),
+      })
+      .strict(),
+    identity: z
+      .object({
+        legalName: text(120, 3),
+        dateOfBirth: day,
+        gender: text(30, 0),
+        phone: z.string().regex(/^\+9779[678]\d{8}$/),
+        idType: z.enum([
+          "citizenship",
+          "passport",
+          "national_id",
+          "driving_licence",
+        ]),
+        idNumber: text(40, 3),
+        idIssuer: text(80, 2),
+      })
+      .strict(),
+    qualifications: z
+      .array(
+        z
+          .object({
+            level: text(60),
+            field: text(120),
+            institution: text(160),
+            country: text(60),
+            year: z.number().int().min(1960).max(2100),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(3),
+    registration: z
+      .object({
+        held: z.boolean(),
+        body: text(120, 0),
+        number: text(40, 0),
+        issuedOn: day.or(z.literal("")),
+        validUntil: day.or(z.literal("")),
+        association: text(200, 0),
+      })
+      .strict(),
+    references: z
+      .array(
+        z
+          .object({
+            name: text(120),
+            role: text(120),
+            organization: text(160),
+            contact: text(120, 5),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(2),
+    documents: z
+      .array(
+        z
+          .object({ kind: documentKind, path: text(200), name: text(160) })
+          .strict(),
+      )
+      .max(8),
+    declarations: z
+      .object({
+        accurate: z.literal(true),
+        goodStanding: z.boolean(),
+        standingDetails: text(1000, 0),
+        consentToVerify: z.literal(true),
+        withinScope: z.literal(true),
+      })
+      .strict(),
+  })
+  .strict();
 const application = z
   .object({
     profession,
     bio: z.string().trim().min(30).max(1500),
     experience: z.string().trim().min(10).max(1000),
+    details: applicationDetails.optional(),
+  })
+  .strict();
+const mediaTypes = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+} as const;
+const documentRequest = z
+  .object({
+    kind: documentKind,
+    mediaType: z.enum(["application/pdf", "image/jpeg", "image/png"]),
+    size: z.number().int().min(1).max(5242880),
   })
   .strict();
 const booking = z
@@ -350,7 +459,32 @@ class AppController {
       this.data.persist(state);
       return row;
     }
-    return this.data.rpc("provider_apply", await this.data.actor(auth), input);
+    const actor = await this.data.actor(auth);
+    // Evidence must be a file this applicant uploaded through a signed URL.
+    if (input.details?.documents.some((d) => !d.path.startsWith(`${actor}/`)))
+      throw new HttpException("Upload your documents again.", 400);
+    return this.data.rpc("provider_apply", actor, input);
+  }
+  @Post("providers/documents") async document(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    const state = this.data.preview(mode, session);
+    const input = parse(documentRequest, body);
+    // Preview never stores files.
+    if (state) return { path: `preview/${crypto.randomUUID()}`, token: null };
+    const actor = await this.data.actor(auth);
+    const path = `${actor}/${input.kind}-${crypto.randomUUID()}.${mediaTypes[input.mediaType]}`;
+    const { data, error } = await this.data.db.storage
+      .from("credential-evidence")
+      .createSignedUploadUrl(path);
+    if (error || !data) {
+      console.error("Evidence upload URL failed:", error?.message);
+      throw new HttpException("Document upload is unavailable.", 500);
+    }
+    return { path, token: data.token };
   }
   @Post("appointments/holds") async hold(
     @Body() body: unknown,
