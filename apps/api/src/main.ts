@@ -193,6 +193,36 @@ const reviewDecision = z
 const documentRef = z
   .object({ caseId: z.string().uuid(), path: text(200) })
   .strict();
+const domain = z.enum(["mental", "nutrition", "fitness"]);
+const goalInput = z.union([
+  z
+    .object({
+      domain,
+      title: text(160, 3),
+      note: text(500, 0),
+      targetDate: day.or(z.literal("")),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string().uuid(),
+      status: z.enum(["ACTIVE", "DONE", "ARCHIVED"]),
+    })
+    .strict(),
+]);
+const shareInput = z
+  .object({ providerId: z.string().uuid(), domain, share: z.boolean() })
+  .strict();
+const planInput = z
+  .object({
+    id: z.string().uuid().optional(),
+    clientId: z.string().uuid(),
+    domain,
+    title: text(160, 3),
+    body: text(8000),
+    archived: z.boolean().optional(),
+  })
+  .strict();
 const mediaTypes = {
   "application/pdf": "pdf",
   "image/jpeg": "jpg",
@@ -405,6 +435,10 @@ class DataService {
   // Review, practice setup and appointment actions live in their own gateway.
   care(action: string, actor: string | null = null, data: any = {}) {
     return this.rpc(action, actor, data, "chatbud_care");
+  }
+  // Goals, care plans and consent-gated sharing.
+  health(action: string, actor: string, data: any = {}) {
+    return this.rpc(action, actor, data, "chatbud_health");
   }
   // Signed-in practice and appointment features have no preview equivalent.
   liveOnly(mode: string | undefined, signed: string | undefined) {
@@ -864,8 +898,58 @@ class CareController {
     return { url: data.signedUrl };
   }
 }
+@Controller()
+class HealthController {
+  constructor(@Inject(DataService) private readonly data: DataService) {}
+  @Get("health/mine") async mine(
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.data.health("health_mine", await this.data.actor(auth));
+  }
+  @Post("health/goal") async goal(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(goalInput, body);
+    return this.data.health("goal_save", await this.data.actor(auth), input);
+  }
+  @Post("health/share") async share(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(shareInput, body);
+    return this.data.health("share_set", await this.data.actor(auth), input);
+  }
+  @Get("provider/clients") async clients(
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.data.health("provider_clients", await this.data.actor(auth));
+  }
+  @Post("provider/plan") async plan(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(planInput, body);
+    return this.data.health("plan_save", await this.data.actor(auth), input);
+  }
+}
 @Module({
-  controllers: [AppController, CareController],
+  controllers: [AppController, CareController, HealthController],
   providers: [DataService],
 })
 class AppModule {}

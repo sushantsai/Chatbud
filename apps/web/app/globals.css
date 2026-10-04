@@ -2274,3 +2274,149 @@ fieldset {
     flex-wrap: wrap;
   }
 }
+
+/* My Health: care areas, plans, goals and sharing */
+.compartment h3,
+.client h3 {
+  font-size: 15px;
+}
+.compartment h3 {
+  margin: 20px 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #33445c;
+  font-family: inherit;
+}
+.plan {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+.plan summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.plan summary span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.plan > p {
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  max-width: 72ch;
+}
+.plan .request-actions {
+  margin-top: 12px;
+}
+.goal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.goal label {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+}
+.goal input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  padding: 0;
+  flex-shrink: 0;
+  accent-color: var(--blue);
+}
+.goal small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.goal.done span {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.goal-form {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.sharing {
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+.sharing legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy);
+}
+.sharing legend small {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.sharing > div {
+  clear: both;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.consent {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  max-width: 72ch;
+}
+.consent svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.client {
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+.client form {
+  margin: 12px 0;
+}
+.shared {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border-radius: 10px;
+}
+.shared h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #33445c;
+}
+.shared-goal {
+  font-size: 14px;
+  margin-top: 8px;
+}
+@media (max-width: 760px) {
+  .goal-form {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}

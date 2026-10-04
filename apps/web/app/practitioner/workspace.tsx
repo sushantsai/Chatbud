@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { CalendarDays, Check, Plus } from "lucide-react";
 import { useApp } from "../_components/app";
+import { Clients } from "./clients";
 import {
   appointmentStatus,
   money,
@@ -190,6 +191,7 @@ export function PracticeWorkspace({
           ))
         )}
       </section>
+      <Clients />
       <section className="panel">
         <div className="panel-heading">
           <h2>Services</h2>

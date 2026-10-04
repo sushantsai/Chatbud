@@ -9,7 +9,7 @@ Development foundation for Chatbud Nepal, a digital health and wellbeing platfor
 - Live approved catalog and practitioner applications persisted in Supabase. Reviewer reads require a designated review role.
 - Development preview with fictional data, signed browser sessions, appointment overlap checks, 10-minute holds, inventory reservations, idempotent requests, and application review actions.
 
-Live care works end to end without payment: practitioners apply with verification details and documents, reviewers approve, request information or reject, approved practitioners set services and weekly hours, and clients request appointments that the practitioner confirms with a meeting link. Payments, in-app video, shipping and fulfillment are not enabled. Preview checkout collects no money and dispatches no products. Use fictional information in preview forms. The live catalog is empty until real professionals and products are onboarded.
+Live care works end to end without payment: practitioners apply with verification details and documents, reviewers approve, request information or reject, approved practitioners set services and weekly hours, and clients request appointments that the practitioner confirms with a meeting link. My Health groups plans and goals by area of care (mental health, nutrition, fitness); a professional sees another area only while the client shares it, and each share records the consent wording. Payments, in-app video, shipping and fulfillment are not enabled. Care plans and applications are stored without application-level encryption; add it before holding real client records. Preview checkout collects no money and dispatches no products. Use fictional information in preview forms. The live catalog is empty until real professionals and products are onboarded.
 
 ## App structure
 
@@ -46,7 +46,7 @@ npm run build
 node scripts/smoke.mjs
 ```
 
-The smoke script requires both development servers. It checks preview isolation, bookings, inventory, idempotency, practitioner review and live authentication gates. `supabase/tests/gateway.sql` checks live gateway authorization and persistence inside a transaction that rolls back all test records. `supabase/tests/care.sql` does the same for review decisions, services, availability, slots and appointment requests.
+The smoke script requires both development servers. It checks preview isolation, bookings, inventory, idempotency, practitioner review and live authentication gates. `supabase/tests/gateway.sql` checks live gateway authorization and persistence inside a transaction that rolls back all test records. `supabase/tests/care.sql` does the same for review decisions, services, availability, slots and appointment requests. `supabase/tests/health.sql` covers goals, scope-limited plans and consent-gated sharing.
 
 ## Architecture and deployment
 
