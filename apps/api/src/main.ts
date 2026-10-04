@@ -168,6 +168,7 @@ class DataService {
     process.env.ENABLE_DEMO === "true" && process.env.NODE_ENV !== "production";
   readonly dataPath = join(process.cwd(), ".dev-data");
   readonly previews = new Map<string, any>();
+  readonly synced = new Map<string, { stamp: string; at: number }>();
   constructor() {
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY)
       throw new Error(
@@ -237,15 +238,12 @@ class DataService {
       p_actor: actor,
       p_data: data,
     });
-    if (error)
-      throw new HttpException(
-        error.code === "42501"
-          ? "Access denied"
-          : error.code === "P0001"
-            ? error.message
-            : "Database operation failed",
-        error.code === "42501" ? 403 : 400,
-      );
+    if (error) {
+      if (error.code === "42501") throw new HttpException("Access denied", 403);
+      if (error.code === "P0001") throw new HttpException(error.message, 400);
+      console.error(`Database operation "${action}" failed`, error.code);
+      throw new HttpException("Database operation failed", 500);
+    }
     return result;
   }
   async actor(authorization: string | undefined) {
@@ -255,10 +253,17 @@ class DataService {
     const { data, error } = await this.db.auth.getUser(token);
     if (error || !data.user?.email_confirmed_at)
       throw new HttpException("A verified sign-in is required", 401);
-    await this.rpc("account", data.user.id, {
+    const profile = {
       email: data.user.email,
       name: data.user.user_metadata?.display_name,
-    });
+    };
+    const stamp = JSON.stringify(profile);
+    const synced = this.synced.get(data.user.id);
+    if (synced?.stamp !== stamp || Date.now() - synced.at > 300000) {
+      await this.rpc("account", data.user.id, profile);
+      if (this.synced.size > 10000) this.synced.clear();
+      this.synced.set(data.user.id, { stamp, at: Date.now() });
+    }
     return data.user.id;
   }
   cleanHolds(state: any) {
@@ -535,7 +540,7 @@ async function bootstrap() {
   app.use(helmet());
   app.enableCors({ origin: process.env.WEB_ORIGIN || "http://localhost:3000" });
   app.use((req: any, res: any, next: () => void) => {
-    const ip = req.ip;
+    const ip = clientIp(req);
     const now = Date.now();
     const old = limits.get(ip) || { at: now, count: 0 };
     if (now - old.at > 60000) {
@@ -551,11 +556,26 @@ async function bootstrap() {
   });
   await app.listen(
     Number(process.env.PORT || 3001),
-    process.env.HOST || "127.0.0.1",
+    process.env.HOST || (process.env.VERCEL ? "0.0.0.0" : "127.0.0.1"),
   );
 }
 const limits = new Map<string, { at: number; count: number }>();
-bootstrap().catch(() => {
-  console.error("API startup failed; verify local configuration.");
+// The web proxy signs the visitor address; unsigned callers are limited by their own address.
+function clientIp(req: any): string {
+  const ip = String(req.headers["x-chatbud-client-ip"] || "");
+  const signature = String(req.headers["x-chatbud-client-signature"] || "");
+  const secret = process.env.DEMO_SESSION_SECRET;
+  if (ip && secret && /^[a-f0-9]{64}$/.test(signature)) {
+    const expected = createHmac("sha256", secret).update(ip).digest("hex");
+    if (timingSafeEqual(Buffer.from(signature), Buffer.from(expected)))
+      return ip;
+  }
+  return req.ip;
+}
+bootstrap().catch((error) => {
+  console.error(
+    "API startup failed; verify configuration:",
+    error instanceof Error ? error.message : error,
+  );
   process.exit(1);
 });

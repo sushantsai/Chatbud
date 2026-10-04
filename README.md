@@ -46,8 +46,10 @@ The smoke script requires both development servers. It checks preview isolation,
 
 `apps/web` is Next.js App Router. Browser API requests pass through a fixed-route server proxy to the NestJS API in `apps/api`. Supabase stores application data behind a server-only RPC; browser users cannot execute that RPC or read private schemas directly. The backend verifies the Supabase access token and derives the actor from the authenticated user.
 
-Deploy the web project with Vercel root directory `apps/web`. Deploy the NestJS API as a separate Node service, then set `CHATBUD_API_URL` to its reachable HTTPS URL and configure its `WEB_ORIGIN`, Supabase credentials, and host binding. Production must use `npm run start --workspace @chatbud/api`, which sets `NODE_ENV=production` and disables preview routes. Both web and API production environments need the shared server-only session secret. Public Supabase settings must be present when building the web app.
+Both apps deploy to Vercel as separate projects from this repository: the web project with root directory `apps/web`, and the NestJS API with root directory `apps/api`. Set `CHATBUD_API_URL` on the web project to the API's HTTPS URL, and `WEB_ORIGIN`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` on the API project. Vercel runs both with `NODE_ENV=production`, which disables preview routes; a self-hosted API must use `npm run start --workspace @chatbud/api` for the same effect. Public Supabase settings must be present when building the web app.
 
-The current in-memory traffic guards are development protections. Shared edge rate limits, monitored secrets, account recovery/email redirects, operational review, payment webhooks and fulfillment workflows remain deployment work. Do not expose the development API as a production service.
+Set the same `DEMO_SESSION_SECRET` on both projects so the web proxy can sign each visitor's address for the API's traffic guard. Without it the live site still works, but the API limits all proxied traffic as one caller.
+
+The in-memory traffic guards are per server instance. Shared edge rate limits, monitored secrets, account recovery/email redirects, operational review, payment webhooks and fulfillment workflows remain deployment work. Do not expose the development API as a production service.
 
 See `supabase/README.md` for migration details. No secrets or real client/provider/product records are seeded in this repository.

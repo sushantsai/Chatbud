@@ -17,6 +17,18 @@ function valid(value: string, secret: string) {
     timingSafeEqual(Buffer.from(sig), Buffer.from(expected))
   );
 }
+function clientIp(req: NextRequest) {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    req.headers.get("x-real-ip") ||
+    "local"
+  );
+}
+// Decides who shares a request budget and how large that budget is per minute.
+function rateLimit(ip: string, session: string | null, isDemo: boolean) {
+  // `session` is null unless the visitor presented a preview cookie this server signed.
+  return { key: ip, max: 120 };
+}
 async function proxy(
   req: NextRequest,
   context: { params: Promise<{ path: string[] }> },
@@ -44,28 +56,36 @@ async function proxy(
       { message: "Development preview is unavailable" },
       { status: 404 },
     );
-  if (!secret)
+  if (isDemo && !secret)
     return NextResponse.json(
       { message: "Server session configuration is incomplete" },
       { status: 503 },
     );
-  if (!valid(session, secret)) {
+  const ip = clientIp(req);
+  const presented = !!secret && valid(session, secret);
+  if (isDemo && secret && !presented) {
     const id = randomUUID();
     session = id + "." + createHmac("sha256", secret).update(id).digest("hex");
   }
   const auth = req.headers.get("authorization") || "";
-  // Development traffic guard; production also needs a shared edge/IP rate limiter.
-  const identity = session.split(".")[0];
+  // Per-instance traffic guard; a shared edge rate limiter is still advisable at scale.
+  const { key, max } = rateLimit(
+    ip,
+    presented ? session.split(".")[0] : null,
+    isDemo,
+  );
   const now = Date.now(),
-    limit = limits.get(identity) || { at: now, count: 0 };
+    limit = limits.get(key) || { at: now, count: 0 };
   if (now - limit.at > 60000) {
     limit.at = now;
     limit.count = 0;
   }
   limit.count++;
-  limits.set(identity, limit);
-  if (limits.size > 10000) limits.clear();
-  if (limit.count > 120)
+  limits.set(key, limit);
+  if (limits.size > 10000)
+    for (const [k, v] of limits) if (now - v.at > 60000) limits.delete(k);
+  if (limits.size > 20000) limits.clear();
+  if (limit.count > max)
     return NextResponse.json(
       { message: "Please try again shortly." },
       { status: 429 },
@@ -79,6 +99,14 @@ async function proxy(
           "Content-Type": "application/json",
           Authorization: auth,
           ...(isDemo ? { "x-chatbud-demo-session": session } : {}),
+          ...(secret
+            ? {
+                "x-chatbud-client-ip": ip,
+                "x-chatbud-client-signature": createHmac("sha256", secret)
+                  .update(ip)
+                  .digest("hex"),
+              }
+            : {}),
         },
         body: req.method === "GET" ? undefined : await req.text(),
         cache: "no-store",
@@ -92,13 +120,14 @@ async function proxy(
         "Cache-Control": "no-store",
       },
     });
-    result.cookies.set("chatbud_preview", session, {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: req.nextUrl.protocol === "https:",
-      path: "/",
-      maxAge: 43200,
-    });
+    if (isDemo)
+      result.cookies.set("chatbud_preview", session, {
+        httpOnly: true,
+        sameSite: "strict",
+        secure: req.nextUrl.protocol === "https:",
+        path: "/",
+        maxAge: 43200,
+      });
     return result;
   } catch {
     return NextResponse.json(
