@@ -241,7 +241,11 @@ class DataService {
     if (error) {
       if (error.code === "42501") throw new HttpException("Access denied", 403);
       if (error.code === "P0001") throw new HttpException(error.message, 400);
-      console.error(`Database operation "${action}" failed`, error.code);
+      console.error(
+        `Database operation "${action}" failed:`,
+        error.code || "no code",
+        error.message,
+      );
       throw new HttpException("Database operation failed", 500);
     }
     return result;
