@@ -91,18 +91,25 @@ export default function Studies() {
               <input
                 id="study-code"
                 required
-                pattern="[A-Za-z]{2,6}"
+                pattern="[A-Z]{2,6}"
+                title="2 to 6 letters, with no numbers, spaces or symbols"
                 maxLength={6}
                 placeholder="e.g. SLP"
                 aria-describedby="study-code-hint"
                 value={study.code}
                 onChange={(e) =>
-                  setStudy({ ...study, code: e.target.value.toUpperCase() })
+                  setStudy({
+                    ...study,
+                    // Letters only: anything else is dropped as it is typed.
+                    code: e.target.value
+                      .replace(/[^A-Za-z]/g, "")
+                      .toUpperCase(),
+                  })
                 }
               />
               <p className="field-hint" id="study-code-hint">
-                2 to 6 letters. Participants are numbered from it, like
-                SLP-0001.
+                2 to 6 letters only, no numbers. Participants are numbered from
+                it, like SLP-0001.
               </p>
             </div>
             <div className="request-actions">
