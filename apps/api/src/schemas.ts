@@ -193,6 +193,13 @@ export const goalInput = z.union([
       title: text(160, 3),
       note: text(500, 0),
       targetDate: day.or(z.literal("")),
+      // The small repeatable action, how many days a week, and the library entry it came from.
+      action: text(160, 0).optional(),
+      weeklyTarget: z.number().int().min(1).max(7).optional(),
+      template: z
+        .string()
+        .regex(/^[a-z0-9-]{2,40}$/)
+        .optional(),
     })
     .strict(),
   z
@@ -202,6 +209,17 @@ export const goalInput = z.union([
     })
     .strict(),
 ]);
+export const goalCheckin = z
+  .object({
+    id: z.string().uuid(),
+    done: z.boolean(),
+    date: day.optional(),
+  })
+  .strict();
+const rating = z.number().int().min(1).max(5);
+export const wellbeingInput = z
+  .object({ mood: rating, sleep: rating, energy: rating })
+  .strict();
 export const shareInput = z
   .object({ providerId: z.string().uuid(), domain, share: z.boolean() })
   .strict();

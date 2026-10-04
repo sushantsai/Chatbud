@@ -33,6 +33,7 @@ import {
   Package,
 } from "lucide-react";
 import { features } from "../_lib/features";
+import { areaName, findNeed } from "../_lib/needs";
 import { canOpen, type TeamArea } from "../_lib/roles";
 import { unitPrice } from "../_lib/store";
 import { supabase } from "../_lib/supabase";
@@ -50,9 +51,9 @@ const tabs: Tab[] = [
 ];
 const headings: Record<string, [string, string, string]> = {
   "/": [
-    "YOUR DIGITAL HEALTH & WELLBEING COMPANION",
-    "Everything you need to live healthier.",
-    "Discover. Consult. Improve. Shop. Protect.",
+    "CHATBUD",
+    "Care for mind, food and body.",
+    "Small steps, real professionals, in one place.",
   ],
   "/professionals": [
     "CHATBUD CARE",
@@ -466,10 +467,16 @@ function Workspace({
   const first = nav[0] || portal?.tabs[0] || tabs[0];
   const isCurrent = (href: string) =>
     href === home ? pathname === home : under(href);
-  const heading = headings[pathname] || headings[home];
+  // Need pages take their heading and colour mood from the need itself.
+  const need = pathname.startsWith("/need/")
+    ? findNeed(pathname.slice(6))
+    : undefined;
+  const heading: [string, string, string] = need
+    ? [areaName(need.area).toUpperCase(), need.title, need.summary]
+    : headings[pathname] || headings[home];
   const crumb =
     nav.find((t) => t.href !== home && isCurrent(t.href))?.label ||
-    (pathname === "/protect" ? "Protect" : first.label);
+    (pathname === "/protect" ? "Protect" : need ? need.title : first.label);
   const signOut = () =>
     run(async () => {
       await supabase?.auth.signOut();
@@ -638,11 +645,11 @@ function Workspace({
               </span>
             </div>
           </aside>
-          <main>
+          <main data-area={need?.area}>
             <div className="breadcrumb">
               Chatbud <span>/</span> {crumb}
             </div>
-            <div className="page-heading">
+            <div className={`page-heading${pathname === "/" ? " quiet" : ""}`}>
               <div>
                 <span className="eyebrow">{heading[0]}</span>
                 <h1>{heading[1]}</h1>

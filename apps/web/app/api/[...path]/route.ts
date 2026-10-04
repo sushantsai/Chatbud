@@ -57,6 +57,8 @@ async function proxy(
       "provider/plan",
       "health/mine",
       "health/goal",
+      "health/checkin",
+      "health/wellbeing",
       "health/share",
       "admin/document",
       "admin/ops",

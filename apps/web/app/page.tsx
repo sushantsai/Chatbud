@@ -2,68 +2,21 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowUpRight,
+  ArrowRight,
   CalendarDays,
-  Dumbbell,
-  Heart,
-  Leaf,
   ShoppingBag,
   Umbrella,
+  Users,
 } from "lucide-react";
 import { useApp } from "./_components/app";
-import { professions } from "./_components/ui";
-import { features, type Feature } from "./_lib/features";
-const needs: {
-  feature: Feature;
-  href: string;
-  title: string;
-  label: string;
-  icon: any;
-  tone: string;
-}[] = [
-  {
-    feature: "mental",
-    href: "/professionals?category=mental",
-    title: "Talk to someone",
-    label: "Mental health",
-    icon: Heart,
-    tone: "blue",
-  },
-  {
-    feature: "nutrition",
-    href: "/professionals?category=nutrition",
-    title: "Improve your nutrition",
-    label: "Dietitian / Nutritionist",
-    icon: Leaf,
-    tone: "green",
-  },
-  {
-    feature: "fitness",
-    href: "/professionals?category=fitness",
-    title: "Get fitter",
-    label: "Fitness coach",
-    icon: Dumbbell,
-    tone: "orange",
-  },
-  {
-    feature: "store",
-    href: "/store",
-    title: "Shop health",
-    label: "Health store",
-    icon: ShoppingBag,
-    tone: "purple",
-  },
-  {
-    feature: "protect",
-    href: "/protect",
-    title: "Protect your family",
-    label: "Health insurance",
-    icon: Umbrella,
-    tone: "blue",
-  },
-];
+import { TodayList, useHealth } from "./_components/goals";
+import { NeedIcon } from "./_components/need-icon";
+import { Urgent, nepalTime } from "./_components/ui";
+import { features } from "./_lib/features";
+import { areas, needs } from "./_lib/needs";
 export default function Home() {
-  const { userName, token, mode, dashboard, catalog, openAuth } = useApp();
+  const { userName, token, mode, dashboard, openAuth } = useApp();
+  const { health, act } = useHealth();
   const [greeting, setGreeting] = useState("Welcome");
   useEffect(() => {
     const hour = Number(
@@ -81,108 +34,106 @@ export default function Home() {
           : "Good evening",
     );
   }, []);
-  const upcoming = dashboard.appointments.filter(
-    (a: any) => a.status !== "EXPIRED" && Date.parse(a.startsAt) > Date.now(),
-  );
+  const next = dashboard.appointments
+    .filter(
+      (a: any) =>
+        ["HELD", "CONFIRMED"].includes(a.status) &&
+        Date.parse(a.startsAt) > Date.now(),
+    )
+    .sort(
+      (a: any, b: any) => Date.parse(a.startsAt) - Date.parse(b.startsAt),
+    )[0];
   const signedIn = mode === "demo" || !!token;
   return (
     <>
       <section className="home-greeting">
-        <h2>
+        <h1>
           {greeting}
-          {userName ? `, ${userName}` : ""}
-        </h2>
-        <p>What do you need today?</p>
+          {userName ? `, ${userName.split(" ")[0]}` : ""}.
+        </h1>
+        <p>What would you like help with?</p>
       </section>
-      <div className="need-grid">
-        {needs
-          .filter((n) => features[n.feature] !== "off")
-          .map((n) => (
-            <Link className="need-card" href={n.href} key={n.title}>
-              <span className={`need-icon tone-${n.tone}`}>
-                <n.icon size={26} strokeWidth={1.6} />
-              </span>
-              <strong>{n.title}</strong>
-              <span>{n.label}</span>
-              {features[n.feature] === "soon" ? (
-                <span className="soon-badge">Coming soon</span>
-              ) : (
-                <ArrowUpRight className="need-arrow" size={18} />
-              )}
-            </Link>
-          ))}
-      </div>
-      <section className="panel">
-        <div className="panel-heading">
-          <h2>Your next steps</h2>
-          <Link href="/appointments">All appointments</Link>
-        </div>
-        {!signedIn ? (
-          <p className="empty-inline">
-            <button className="text-button" onClick={openAuth}>
-              Sign in
-            </button>{" "}
-            to see your appointments, plans and purchases here.
-          </p>
-        ) : upcoming.length === 0 ? (
-          <p className="empty-inline">
-            Nothing booked yet. Your upcoming appointments will appear here.
-          </p>
-        ) : (
-          upcoming.slice(0, 3).map((a: any) => (
-            <div className="record" key={a.id}>
-              <span className="record-icon">
-                <CalendarDays size={22} />
-              </span>
-              <div>
-                <strong>{a.provider}</strong>
-                <p>
-                  {a.service} ·{" "}
-                  {new Date(a.startsAt).toLocaleString("en-NP", {
-                    timeZone: "Asia/Kathmandu",
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}{" "}
-                  NPT
-                </p>
-              </div>
-              <span className="status">{a.status.replaceAll("_", " ")}</span>
-            </div>
-          ))
-        )}
-      </section>
-      {catalog.providers.length > 0 && (
-        <section className="panel">
-          <div className="panel-heading">
-            <h2>Professionals on Chatbud</h2>
-            <Link href="/professionals">See all</Link>
+      {health && <TodayList health={health} act={act} />}
+      {next && (
+        <Link className="next-up" href="/appointments">
+          <CalendarDays size={22} />
+          <div>
+            <strong>
+              {next.status === "CONFIRMED"
+                ? "Next session"
+                : "Awaiting confirmation"}
+              : {next.provider}
+            </strong>
+            <p>
+              {next.service} · {nepalTime(next.startsAt)} NPT
+            </p>
           </div>
-          {catalog.providers.slice(0, 3).map((p: any) => (
-            <div className="record" key={p.serviceId || p.id}>
-              <span className="record-icon">
-                <Heart size={22} />
-              </span>
-              <div>
-                <strong>{p.name}</strong>
-                <p>
-                  {professions[p.profession] || p.profession}
-                  {p.service ? ` · ${p.service}` : ""}
-                </p>
-              </div>
-            </div>
-          ))}
-        </section>
+          <ArrowRight size={18} />
+        </Link>
       )}
-      <div className="care-note">
-        <Heart size={21} />
-        <div>
-          <strong>Human expertise, technology and trusted products.</strong>
-          <p>
-            Recommendations on Chatbud come from qualified professionals, and
-            you choose what to act on. Chatbud does not provide emergency care.
-          </p>
-        </div>
+      {areas
+        .filter((a) => features[a.id] !== "off")
+        .map((area) => (
+          <section className="area-band" data-area={area.id} key={area.id}>
+            <header>
+              <h2>{area.name}</h2>
+              <p>{area.line}</p>
+              {features[area.id] === "soon" && (
+                <span className="soon-badge">Coming soon</span>
+              )}
+            </header>
+            <div className="need-grid">
+              {needs
+                .filter((n) => n.area === area.id)
+                .map((n) => (
+                  <Link
+                    className="need-card"
+                    href={`/need/${n.slug}`}
+                    key={n.slug}
+                  >
+                    <span className="need-icon">
+                      <NeedIcon slug={n.slug} />
+                    </span>
+                    <strong>{n.title}</strong>
+                    <span>{n.summary}</span>
+                  </Link>
+                ))}
+            </div>
+          </section>
+        ))}
+      <div className="quick-links">
+        <Link href="/professionals">
+          <Users size={20} />
+          <strong>Browse all professionals</strong>
+          <span>Verified before they are listed</span>
+        </Link>
+        {features.store !== "off" && (
+          <Link href="/store">
+            <ShoppingBag size={20} />
+            <strong>Health store</strong>
+            <span>Food, devices and everyday wellness</span>
+          </Link>
+        )}
+        {features.protect !== "off" && (
+          <Link href="/protect">
+            <Umbrella size={20} />
+            <strong>Protect your family</strong>
+            <span>
+              Health insurance
+              {features.protect === "soon" && " · coming soon"}
+            </span>
+          </Link>
+        )}
       </div>
+      {!signedIn && (
+        <p className="empty-inline">
+          <button className="text-button" onClick={openAuth}>
+            Sign in
+          </button>{" "}
+          to keep goals, see your appointments and track your progress.
+        </p>
+      )}
+      <Urgent />
     </>
   );
 }
