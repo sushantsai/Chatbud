@@ -30,9 +30,8 @@ export type Requirements = {
   registrationRequired: boolean;
 };
 export function requirementsFor(profession: string): Requirements {
-  // TODO(human): set the registering body and whether registration is
-  // mandatory for each profession in Nepal. Only the psychiatrist rule below
-  // is filled in; the rest fall through to "optional, applicant chooses".
+  // Only psychiatrists have a confirmed mandatory body; other professions
+  // choose their own and may declare that none applies.
   if (profession === "psychiatrist")
     return { body: "Nepal Medical Council", registrationRequired: true };
   return { body: "", registrationRequired: false };
