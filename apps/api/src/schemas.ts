@@ -389,3 +389,107 @@ export const teamActions = {
 export const promoCheck = z
   .object({ code: text(20, 4), subtotal: z.number().min(0).max(10000000) })
   .strict();
+
+// Field research. Studies, consent, participants, assessments and referrals arrive as { action, data }.
+const instrument = z.enum(["PHQ9", "GAD7", "MEASURES"]);
+const grantByEmail = {
+  email: z.string().trim().email().max(160),
+  grant: z.boolean(),
+};
+export const researchActions = {
+  workspace: none,
+  lead_set: z.object(grantByEmail).strict(),
+  study_save: z.union([
+    z
+      .object({
+        code: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z]{2,6}$/),
+        title: text(160, 3),
+      })
+      .strict(),
+    z
+      .object({
+        id: uuid,
+        title: text(160, 3),
+        summary: text(2000, 0),
+        partner: text(160, 0),
+        ethicsReference: text(120, 0),
+        ethicsApprovedOn: dayOrBlank,
+        instruments: z.array(instrument).max(3),
+        consentText: text(6000, 0),
+        status: z.enum(["DRAFT", "ACTIVE", "CLOSED"]),
+      })
+      .strict(),
+  ]),
+  member_set: z
+    .object({
+      studyId: uuid,
+      ...grantByEmail,
+      role: z.enum(["LEAD", "CLINICIAN", "HEALTH_WORKER"]),
+    })
+    .strict(),
+  study_view: z.object({ studyId: uuid }).strict(),
+  export: z.object({ studyId: uuid }).strict(),
+  participant_enroll: z
+    .object({
+      studyId: uuid,
+      sex: z.enum(["FEMALE", "MALE", "OTHER", "UNDISCLOSED"]),
+      birthYear: z.number().int().min(1900).max(2100),
+      district: text(80, 2),
+      identity: z
+        .object({
+          fullName: text(120, 2),
+          phone: text(30, 0),
+          locality: text(160, 0),
+        })
+        .strict(),
+      consent: z
+        .object({
+          participation: z.literal(true),
+          recording: z.boolean(),
+          futureUse: z.boolean(),
+          method: z.enum(["SIGNED", "THUMBPRINT", "VERBAL_WITNESSED"]),
+          witness: text(120, 0),
+        })
+        .strict()
+        .refine((c) => c.method === "SIGNED" || c.witness.length >= 3, {
+          message: "A thumbprint or spoken consent needs a witness.",
+        }),
+    })
+    .strict(),
+  participant_view: z.object({ participantId: uuid }).strict(),
+  participant_identity: z.object({ participantId: uuid }).strict(),
+  consent_withdraw: z.object({ participantId: uuid }).strict(),
+  assessment_save: z
+    .object({
+      participantId: uuid,
+      instrument,
+      answers: z.union([
+        z.array(z.number().int().min(0).max(3)).max(12),
+        z.record(z.string().max(20), z.number()),
+      ]),
+      notes: text(2000, 0),
+    })
+    .strict(),
+  referral_save: z.union([
+    z
+      .object({
+        participantId: uuid,
+        id: uuid,
+        status: z.enum(["OPEN", "CONTACTED", "BOOKED", "CLOSED"]),
+      })
+      .strict(),
+    z
+      .object({
+        participantId: uuid,
+        assessmentId: uuid.or(z.literal("")),
+        profession,
+        urgency: z.enum(["ROUTINE", "SOON", "URGENT"]),
+        note: text(2000, 0),
+        treatment: text(2000, 0),
+      })
+      .strict(),
+  ]),
+};

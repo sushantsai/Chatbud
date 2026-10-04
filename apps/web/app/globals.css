@@ -3229,3 +3229,92 @@ main[data-area] .heading-mark {
     transition: none;
   }
 }
+
+/* Research workspace */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue);
+}
+.consent-text {
+  margin: 10px 0 14px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  font-size: 15px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  max-width: 72ch;
+}
+.enrol,
+.assessment,
+.referral {
+  padding: 18px 0 8px;
+}
+.enrol h3,
+.assessment h3 {
+  margin: 22px 0 8px;
+}
+.enrol h3:first-child {
+  margin-top: 0;
+}
+.enrol > .choice {
+  display: flex;
+  margin-bottom: 10px;
+}
+.enrol .field-grid,
+.referral .field-grid,
+.setup .field-grid {
+  margin: 14px 0;
+}
+.setup > summary {
+  cursor: pointer;
+}
+.setup > summary h2 {
+  display: inline;
+}
+.setup form {
+  margin-top: 18px;
+}
+.setup form > .field,
+.setup form > .sharing,
+.assessment > .field,
+.referral > .field {
+  margin-bottom: 16px;
+}
+.assessment .rating legend {
+  font-weight: 500;
+  font-size: 14px;
+  max-width: 70ch;
+}
+.identity {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #fff8e6;
+  font-size: 14px;
+}
+.identity small {
+  display: block;
+  color: var(--muted);
+}
+.text-button.danger {
+  color: #b3261e;
+}
+.result .care-note {
+  margin: 14px 0;
+}
+.record > select {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 38px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  font-size: 13px;
+}

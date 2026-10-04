@@ -14,6 +14,7 @@ import {
   ArrowUpRight,
   CalendarDays,
   Check,
+  ClipboardList,
   Globe,
   Heart,
   HeartPulse,
@@ -130,6 +131,11 @@ const headings: Record<string, [string, string, string]> = {
     "Team and roles",
     "Decide who on the team can do what.",
   ],
+  "/research": [
+    "RESEARCH",
+    "Field research workspace",
+    "Studies, consent, assessments and referrals.",
+  ],
   "/help": [
     "HELP",
     "We are here to put things right.",
@@ -146,7 +152,14 @@ const headings: Record<string, [string, string, string]> = {
     "Health insurance from licensed partners.",
   ],
 };
-const portals: Record<"pro" | "admin", { label: string; tabs: Tab[] }> = {
+const portals: Record<
+  "pro" | "admin" | "research",
+  { label: string; tabs: Tab[] }
+> = {
+  research: {
+    label: "Research",
+    tabs: [{ href: "/research", label: "Studies", icon: ClipboardList }],
+  },
   pro: {
     label: "For professionals",
     tabs: [
@@ -458,7 +471,9 @@ function Workspace({
     ? portals.pro
     : under("/admin")
       ? portals.admin
-      : null;
+      : under("/research")
+        ? portals.research
+        : null;
   // Team members see only the areas their roles open.
   const nav = (portal ? portal.tabs : tabs).filter(
     (t) => !t.area || mode === "demo" || canOpen(dashboard.roles, t.area),
@@ -639,9 +654,11 @@ function Workspace({
               <span>
                 {portal === portals.admin
                   ? "Every review decision and document view is recorded."
-                  : portal
-                    ? "Client records are visible only as each client allows."
-                    : "Your privacy matters. Your care information stays private."}
+                  : portal === portals.research
+                    ? "Participant data is confidential. Record only what the study protocol allows."
+                    : portal
+                      ? "Client records are visible only as each client allows."
+                      : "Your privacy matters. Your care information stays private."}
               </span>
             </div>
           </aside>
@@ -682,6 +699,7 @@ function Workspace({
                 ) : (
                   <>
                     <Link href="/pro">For professionals</Link>
+                    <Link href="/research">Research</Link>
                     <Link href="/admin">Team sign in</Link>
                   </>
                 )}
