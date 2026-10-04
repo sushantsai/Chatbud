@@ -1,0 +1,17 @@
+{
+  "name": "chatbud",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace @chatbud/web",
+    "dev:api": "npm run dev --workspace @chatbud/api",
+    "build": "npm run build --workspace @chatbud/api && npm run build --workspace @chatbud/web",
+    "check": "npm run check --workspace @chatbud/web && npm run check --workspace @chatbud/api"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
