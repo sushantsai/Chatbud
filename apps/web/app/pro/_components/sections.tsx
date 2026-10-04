@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { CalendarDays, Check, Plus } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useApp } from "../../_components/app";
 import {
   appointmentStatus,
@@ -67,9 +67,82 @@ export function GoLive() {
     </>
   );
 }
+const nepalDay = (date: Date) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kathmandu" }).format(date);
+// Lets the professional offer the client a different date and time.
+function ProposeTime({ a, done }: { a: any; done: () => void }) {
+  const { api, busy, act } = useSection();
+  const [date, setDate] = useState(nepalDay(new Date(a.startsAt))),
+    [time, setTime] = useState("10:00");
+  const startsAt = new Date(`${date}T${time}:00+05:45`);
+  const valid =
+    !Number.isNaN(startsAt.getTime()) &&
+    startsAt.getTime() > Date.now() + 3600000;
+  return (
+    <form
+      className="booking-action"
+      onSubmit={(e) => {
+        e.preventDefault();
+        act(async () => {
+          await api("provider/reschedule", "POST", {
+            id: a.id,
+            startsAt: startsAt.toISOString(),
+          });
+          done();
+        }, `New time sent to ${a.client}. It is final once they accept.`);
+      }}
+    >
+      <div className="propose-fields">
+        <div className="field">
+          <label htmlFor={`date-${a.id}`}>New date</label>
+          <input
+            id={`date-${a.id}`}
+            type="date"
+            required
+            min={nepalDay(new Date())}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor={`time-${a.id}`}>New time · Nepal time</label>
+          <input
+            id={`time-${a.id}`}
+            type="time"
+            required
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="request-actions">
+        <button className="button small" disabled={busy || !valid}>
+          Send new time
+        </button>
+        <button type="button" className="text-button" onClick={done}>
+          Back
+        </button>
+      </div>
+      {!valid && (
+        <p className="field-error" role="alert">
+          Choose a time at least one hour from now.
+        </p>
+      )}
+    </form>
+  );
+}
+function Proposed({ a }: { a: any }) {
+  return a.proposedStartsAt ? (
+    <p className="proposal-note">
+      You proposed {nepalTime(a.proposedStartsAt)} NPT. Waiting for {a.client}{" "}
+      to accept.
+    </p>
+  ) : null;
+}
 export function Requests() {
   const { workspace, api, busy, act } = useSection();
-  const [links, setLinks] = useState<Record<string, string>>({});
+  const [links, setLinks] = useState<Record<string, string>>({}),
+    [moving, setMoving] = useState("");
   const requests = pendingRequests(workspace);
   return (
     <section className="panel">
@@ -79,69 +152,97 @@ export function Requests() {
           New requests appear here. You have 24 hours to confirm each one.
         </p>
       ) : (
-        requests.map((a: any) => (
-          <div className="request" key={a.id}>
-            <div>
-              <strong>{a.client}</strong>
-              <p>
-                {a.service} · {nepalTime(a.startsAt)} NPT
-              </p>
+        requests.map((a: any) => {
+          const own = (links[a.id] || "").trim();
+          return (
+            <div className="booking-row" key={a.id}>
+              <div>
+                <strong>{a.client}</strong>
+                <p>
+                  {a.service} · {nepalTime(a.startsAt)} NPT
+                </p>
+                <Proposed a={a} />
+              </div>
+              <span className="status status-held">
+                {appointmentStatus[a.status]}
+              </span>
+              <div className="request-actions wrap">
+                <button
+                  className="button small"
+                  disabled={busy || (!!own && !/^https:\/\/\S+$/.test(own))}
+                  onClick={() =>
+                    act(
+                      () =>
+                        api("provider/appointments", "POST", {
+                          id: a.id,
+                          decision: "CONFIRM",
+                          ...(own ? { meetingUrl: own } : {}),
+                        }),
+                      "Confirmed. The meeting link is now on your client’s appointment.",
+                    )
+                  }
+                >
+                  Confirm
+                </button>
+                <button
+                  className="button secondary small"
+                  onClick={() => setMoving(moving === a.id ? "" : a.id)}
+                >
+                  Propose another time
+                </button>
+                <button
+                  className="text-button"
+                  disabled={busy}
+                  onClick={() =>
+                    act(
+                      () =>
+                        api("provider/appointments", "POST", {
+                          id: a.id,
+                          decision: "DECLINE",
+                        }),
+                      "Request declined.",
+                    )
+                  }
+                >
+                  Decline
+                </button>
+              </div>
+              {moving === a.id ? (
+                <ProposeTime a={a} done={() => setMoving("")} />
+              ) : (
+                <details className="own-link">
+                  <summary>Use my own meeting link</summary>
+                  <div className="field">
+                    <label htmlFor={`link-${a.id}`}>
+                      Meeting link<span className="optional">Optional</span>
+                    </label>
+                    <input
+                      id={`link-${a.id}`}
+                      type="url"
+                      inputMode="url"
+                      placeholder="https://meet.google.com/…"
+                      value={links[a.id] || ""}
+                      onChange={(e) =>
+                        setLinks((l) => ({ ...l, [a.id]: e.target.value }))
+                      }
+                    />
+                    <p className="field-hint">
+                      Leave empty and Chatbud creates the meeting link when you
+                      confirm.
+                    </p>
+                  </div>
+                </details>
+              )}
             </div>
-            <label>
-              Meeting link
-              <input
-                type="url"
-                inputMode="url"
-                placeholder="https://meet.google.com/…"
-                value={links[a.id] || ""}
-                onChange={(e) =>
-                  setLinks((l) => ({ ...l, [a.id]: e.target.value }))
-                }
-              />
-            </label>
-            <div className="request-actions">
-              <button
-                className="button small"
-                disabled={busy || !/^https:\/\/\S+$/.test(links[a.id] || "")}
-                onClick={() =>
-                  act(
-                    () =>
-                      api("provider/appointments", "POST", {
-                        id: a.id,
-                        decision: "CONFIRM",
-                        meetingUrl: links[a.id],
-                      }),
-                    "Appointment confirmed. Your client can now see the meeting link.",
-                  )
-                }
-              >
-                Confirm
-              </button>
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() =>
-                  act(
-                    () =>
-                      api("provider/appointments", "POST", {
-                        id: a.id,
-                        decision: "DECLINE",
-                      }),
-                    "Request declined.",
-                  )
-                }
-              >
-                Decline
-              </button>
-            </div>
-          </div>
-        ))
+          );
+        })
       )}
     </section>
   );
 }
 export function Upcoming() {
   const { workspace, api, busy, act } = useSection();
+  const [moving, setMoving] = useState("");
   const upcoming = confirmedAppointments(workspace);
   return (
     <section className="panel">
@@ -150,20 +251,18 @@ export function Upcoming() {
         <p className="empty-inline">Confirmed appointments appear here.</p>
       ) : (
         upcoming.map((a: any) => (
-          <div className="record appointment" key={a.id}>
-            <span className="record-icon">
-              <CalendarDays size={22} />
-            </span>
+          <div className="booking-row" key={a.id}>
             <div>
               <strong>{a.client}</strong>
               <p>
                 {a.service} · {nepalTime(a.startsAt)} NPT
               </p>
+              <Proposed a={a} />
             </div>
             <span className="status status-confirmed">
               {appointmentStatus[a.status]}
             </span>
-            <div className="record-actions">
+            <div className="request-actions wrap">
               {a.meetingUrl && (
                 <a
                   className="button small"
@@ -174,6 +273,12 @@ export function Upcoming() {
                   Join
                 </a>
               )}
+              <button
+                className="button secondary small"
+                onClick={() => setMoving(moving === a.id ? "" : a.id)}
+              >
+                Propose another time
+              </button>
               <button
                 className="text-button"
                 disabled={busy}
@@ -187,6 +292,9 @@ export function Upcoming() {
                 Cancel
               </button>
             </div>
+            {moving === a.id && (
+              <ProposeTime a={a} done={() => setMoving("")} />
+            )}
           </div>
         ))
       )}

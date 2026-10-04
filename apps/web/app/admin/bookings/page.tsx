@@ -18,7 +18,7 @@ function Booking({ b, reload }: { b: any; reload: () => Promise<void> }) {
       await ops(
         mode === "confirm" ? "booking_confirm" : "booking_cancel",
         mode === "confirm"
-          ? { id: b.id, meetingUrl: value.trim() }
+          ? { id: b.id, ...(value.trim() ? { meetingUrl: value.trim() } : {}) }
           : { id: b.id, reason: value.trim() },
       );
       setMode("");
@@ -32,7 +32,7 @@ function Booking({ b, reload }: { b: any; reload: () => Promise<void> }) {
     });
   const valid =
     mode === "confirm"
-      ? /^https:\/\/\S+$/.test(value.trim())
+      ? !value.trim() || /^https:\/\/\S+$/.test(value.trim())
       : value.trim().length >= 10;
   return (
     <div className="booking-row">
@@ -76,7 +76,7 @@ function Booking({ b, reload }: { b: any; reload: () => Promise<void> }) {
           <div className="field">
             <label htmlFor={`act-${b.id}`}>
               {mode === "confirm"
-                ? "Meeting link agreed with the professional"
+                ? "Meeting link (leave empty and Chatbud creates one)"
                 : "Reason, recorded on the appointment"}
             </label>
             <input

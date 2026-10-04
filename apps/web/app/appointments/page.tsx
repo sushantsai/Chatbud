@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Video } from "lucide-react";
+import { Video } from "lucide-react";
 import { useApp } from "../_components/app";
 import {
   SignInPrompt,
@@ -54,6 +54,16 @@ export default function Appointments() {
         Sign in to see your appointments.
       </SignInPrompt>
     );
+  const respond = (a: any, accept: boolean) =>
+    run(async () => {
+      await api("appointments/reschedule", "POST", { id: a.id, accept });
+      setMine((await api("appointments")).appointments);
+      setNotice(
+        accept
+          ? "New time accepted. Your consultation is confirmed."
+          : "You kept the original time.",
+      );
+    });
   const appointments: any[] | null = live ? mine : dashboard.appointments;
   return (
     <section className="panel">
@@ -71,20 +81,29 @@ export default function Appointments() {
         </p>
       ) : (
         appointments.map((a: any) => (
-          <div className="record appointment" key={a.id}>
-            <span className="record-icon">
-              <CalendarDays size={22} />
-            </span>
+          <div className="booking-row" key={a.id}>
             <div>
               <strong>{a.provider}</strong>
               <p>
                 {a.service} · {nepalTime(a.startsAt)} NPT · {money(a.price)}
               </p>
+              {a.meetingUrl && (
+                <p className="meeting-link">
+                  <Video size={14} /> Meeting link:{" "}
+                  <a
+                    href={a.meetingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {a.meetingUrl}
+                  </a>
+                </p>
+              )}
             </div>
             <span className={`status status-${a.status.toLowerCase()}`}>
               {appointmentStatus[a.status] || a.status.replaceAll("_", " ")}
             </span>
-            <div className="record-actions">
+            <div className="request-actions wrap">
               {a.meetingUrl && (
                 <a
                   className="button small"
@@ -92,7 +111,7 @@ export default function Appointments() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <Video size={15} /> Join
+                  Join
                 </a>
               )}
               {live && canCancel(a) && (
@@ -111,6 +130,33 @@ export default function Appointments() {
                 </button>
               )}
             </div>
+            {live &&
+              a.proposedStartsAt &&
+              ["HELD", "CONFIRMED"].includes(a.status) && (
+                <div className="booking-action proposal">
+                  <p>
+                    <strong>{a.provider} has proposed a new time:</strong>{" "}
+                    {nepalTime(a.proposedStartsAt)} NPT. Accepting makes this
+                    your confirmed appointment.
+                  </p>
+                  <div className="request-actions">
+                    <button
+                      className="button small"
+                      disabled={busy}
+                      onClick={() => respond(a, true)}
+                    >
+                      Accept new time
+                    </button>
+                    <button
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => respond(a, false)}
+                    >
+                      Keep the original time
+                    </button>
+                  </div>
+                </div>
+              )}
           </div>
         ))
       )}
