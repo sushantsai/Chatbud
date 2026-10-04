@@ -1,6 +1,6 @@
 # Chatbud
 
-Development foundation for Chatbud Nepal: mental-health professionals, nutritionists and dietitians, and Chatbud-owned wellness/supplement ecommerce.
+Development foundation for Chatbud Nepal, a digital health and wellbeing platform: mental-health, nutrition and fitness professionals (Care), Chatbud-owned wellness/supplement ecommerce (Store), and health insurance from licensed partners (Protect).
 
 ## What works
 
@@ -10,6 +10,12 @@ Development foundation for Chatbud Nepal: mental-health professionals, nutrition
 - Development preview with fictional data, signed browser sessions, appointment overlap checks, 10-minute holds, inventory reservations, idempotent requests, and application review actions.
 
 Live booking, payments, video consultations, credential approval, shipping and fulfillment are not enabled. Preview checkout collects no money and dispatches no products. Use fictional information in preview forms. The live catalog is empty until real professionals and products are onboarded.
+
+## App structure
+
+The web app has five tabs, each its own route: Home (`/`), Professionals (`/professionals`), Appointments (`/appointments`), Store (`/store`) and My Health (`/my-health`), plus `/practitioner`, `/review` and `/protect`. Shared session, catalog and bag state lives in `apps/web/app/_components/app.tsx`.
+
+Each vertical is `live`, `soon` (shown as coming soon) or `off` (hidden) in `apps/web/app/_lib/features.ts`. Fitness, medicines and insurance are `soon`; content is `off`.
 
 ## Local development
 
