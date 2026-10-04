@@ -19,6 +19,14 @@ export const fitnessProfessions = [
   "fitness_coach",
   "yoga_instructor",
 ];
+// Areas of care. Records in one area are not visible to professionals in another unless the client shares them.
+export const careAreas = [
+  { id: "mental", label: "Mental health" },
+  { id: "nutrition", label: "Nutrition" },
+  { id: "fitness", label: "Fitness" },
+] as const;
+export const areaLabel = (id: string) =>
+  careAreas.find((a) => a.id === id)?.label || id;
 // Appointment times are always shown in Nepal time, wherever the visitor is.
 export const nepalTime = (value: string | Date, withDate = true) =>
   new Date(value).toLocaleString("en-NP", {
