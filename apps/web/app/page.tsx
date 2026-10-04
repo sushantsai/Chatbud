@@ -158,14 +158,15 @@ export default function Home() {
             <Link href="/professionals">See all</Link>
           </div>
           {catalog.providers.slice(0, 3).map((p: any) => (
-            <div className="record" key={p.serviceId}>
+            <div className="record" key={p.serviceId || p.id}>
               <span className="record-icon">
                 <Heart size={22} />
               </span>
               <div>
                 <strong>{p.name}</strong>
                 <p>
-                  {professions[p.profession] || p.profession} · {p.service}
+                  {professions[p.profession] || p.profession}
+                  {p.service ? ` · ${p.service}` : ""}
                 </p>
               </div>
             </div>

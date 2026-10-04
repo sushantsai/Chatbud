@@ -1,5 +1,12 @@
 "use client";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -25,6 +32,7 @@ import {
 } from "lucide-react";
 import { features } from "../_lib/features";
 import { supabase } from "../_lib/supabase";
+import { AuthForm } from "./auth-form";
 import { BookingForm } from "./booking";
 import { Dialog, money } from "./ui";
 const tabs = [
@@ -60,21 +68,57 @@ const headings: Record<string, [string, string, string]> = {
     "Your health, in your hands.",
     "Plans, goals, purchases and protection, kept private to you.",
   ],
-  "/practitioner": [
+  "/pro": [
     "FOR PROFESSIONALS",
-    "Make room for better care.",
-    "Apply to join Chatbud and manage your professional profile.",
+    "Your practice at a glance.",
+    "Requests, upcoming appointments and what to do next.",
   ],
-  "/review": [
-    "REVIEW WORKSPACE",
+  "/pro/appointments": [
+    "FOR PROFESSIONALS",
+    "Appointments",
+    "Confirm requests and join your upcoming sessions.",
+  ],
+  "/pro/clients": [
+    "FOR PROFESSIONALS",
+    "Clients",
+    "Plans you have written and what each client shares with you.",
+  ],
+  "/pro/services": [
+    "FOR PROFESSIONALS",
+    "Services and hours",
+    "What clients can book with you, and when.",
+  ],
+  "/pro/profile": [
+    "FOR PROFESSIONALS",
+    "Profile and verification",
+    "How you appear to clients and where your verification stands.",
+  ],
+  "/admin": [
+    "CHATBUD TEAM",
     "Care starts with trust.",
-    "Review provider applications and keep operations moving.",
+    "Review professionals’ applications to be listed on Chatbud.",
   ],
   "/protect": [
     "CHATBUD PROTECT",
     "Protect what matters most.",
     "Health insurance from licensed partners.",
   ],
+};
+const portals = {
+  pro: {
+    label: "For professionals",
+    tabs: [
+      { href: "/pro", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/pro/appointments", label: "Appointments", icon: CalendarDays },
+      { href: "/pro/clients", label: "Clients", icon: Users },
+      { href: "/pro/services", label: "Services & hours", icon: Stethoscope },
+      { href: "/pro/profile", label: "Profile", icon: UserRound },
+    ],
+  },
+  admin: {
+    label: "Chatbud team",
+    tabs: [{ href: "/admin", label: "Applications", icon: ShieldCheck }],
+  },
 };
 type App = {
   mode: string;
@@ -87,6 +131,9 @@ type App = {
   dashboard: any;
   setDashboard: (dashboard: any) => void;
   allowAdmin: boolean;
+  // False until the signed-in person's roles and records have loaded.
+  dashboardLoaded: boolean;
+  signOut: () => Promise<void>;
   cart: Record<string, number>;
   setCart: React.Dispatch<React.SetStateAction<Record<string, number>>>;
   busy: boolean;
@@ -190,15 +237,16 @@ function Workspace({
     [notice, setNotice] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [dashboardLoaded, setDashboardLoaded] = useState(false),
     [dashboard, setDashboard] = useState<any>({
       appointments: [],
       orders: [],
       roles: [],
     });
-  const [authMode, setAuthMode] = useState("signin");
   const mounted = useRef(false),
     requests = useRef(new Set<AbortController>());
-  useEffect(() => {
+  // A layout effect, so the flag is set before any page's own effect calls api().
+  useLayoutEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
@@ -261,10 +309,16 @@ function Workspace({
     // Load roles immediately after authentication, on whichever tab is open.
     api("me")
       .then((data) => {
-        if (active) setDashboard(data);
+        if (active) {
+          setDashboard(data);
+          setDashboardLoaded(true);
+        }
       })
       .catch((e) => {
-        if (active && e.name !== "AbortError") setError(e.message);
+        if (active && e.name !== "AbortError") {
+          setError(e.message);
+          setDashboardLoaded(true);
+        }
       });
     return () => {
       active = false;
@@ -309,18 +363,28 @@ function Workspace({
     dashboard.roles?.some((r: string) =>
       ["VERIFICATION", "CLINICAL_REVIEW"].includes(r),
     );
+  // The professional and team portals have their own navigation and sign-in.
+  // "/pro" must not match "/professionals" or "/protect".
+  const under = (base: string) =>
+    pathname === base || pathname.startsWith(`${base}/`);
+  const portal = under("/pro")
+    ? portals.pro
+    : under("/admin")
+      ? portals.admin
+      : null;
+  const nav = portal ? portal.tabs : tabs;
+  const home = portal ? portal.tabs[0].href : "/";
   const isCurrent = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
-  const heading = headings[pathname] || headings["/"];
+    href === home ? pathname === home : under(href);
+  const heading = headings[pathname] || headings[home];
   const crumb =
-    tabs.find((t) => t.href !== "/" && isCurrent(t.href))?.label ||
-    (pathname === "/practitioner"
-      ? "Practitioner workspace"
-      : pathname === "/review"
-        ? "Review workspace"
-        : pathname === "/protect"
-          ? "Protect"
-          : "Home");
+    nav.find((t) => t.href !== home && isCurrent(t.href))?.label ||
+    (pathname === "/protect" ? "Protect" : nav[0].label);
+  const signOut = () =>
+    run(async () => {
+      await supabase?.auth.signOut();
+      setNotice("Signed out.");
+    });
   const app: App = {
     mode,
     token,
@@ -332,6 +396,8 @@ function Workspace({
     dashboard,
     setDashboard,
     allowAdmin,
+    dashboardLoaded,
+    signOut,
     cart,
     setCart,
     busy,
@@ -351,14 +417,15 @@ function Workspace({
     <AppContext.Provider value={app}>
       <div className="app">
         <header className="topbar">
-          <Link className="brand" href="/">
+          <Link className="brand" href={home}>
             <span className="brand-icon">
               <Heart size={22} />
             </span>
             chatbud<span className="brand-dot">.</span>
           </Link>
+          {portal && <span className="portal-label">{portal.label}</span>}
           <nav aria-label="Main navigation">
-            {tabs.map((t) => (
+            {nav.map((t) => (
               <Link
                 key={t.href}
                 href={t.href}
@@ -370,10 +437,16 @@ function Workspace({
             ))}
           </nav>
           <div className="top-actions">
-            <span className="location">
-              <Globe size={15} /> Nepal · NPR
-            </span>
-            {features.store === "live" && (
+            {portal ? (
+              <Link className="location" href="/">
+                <ArrowUpRight size={15} /> Chatbud for clients
+              </Link>
+            ) : (
+              <span className="location">
+                <Globe size={15} /> Nepal · NPR
+              </span>
+            )}
+            {!portal && features.store === "live" && (
               <button
                 className="icon-button cart-button"
                 aria-label={`Shopping bag, ${cartCount} items`}
@@ -387,21 +460,18 @@ function Workspace({
               <button
                 className="account"
                 aria-label={`Sign out ${userName}`}
-                onClick={() =>
-                  run(async () => {
-                    await supabase?.auth.signOut();
-                    setNotice("Signed out.");
-                  })
-                }
+                onClick={signOut}
               >
                 <UserRound size={16} />
                 <span>{userName}</span>
                 <LogOut size={14} />
               </button>
             ) : (
-              <button className="button small" onClick={openAuth}>
-                Sign in
-              </button>
+              !portal && (
+                <button className="button small" onClick={openAuth}>
+                  Sign in
+                </button>
+              )
             )}
           </div>
         </header>
@@ -425,8 +495,10 @@ function Workspace({
         )}
         <div className="workspace">
           <aside className="sidebar">
-            <div className="sidebar-label">YOUR WELLBEING</div>
-            {tabs.map((t) => (
+            <div className="sidebar-label">
+              {portal ? portal.label.toUpperCase() : "YOUR WELLBEING"}
+            </div>
+            {nav.map((t) => (
               <Link
                 key={t.href}
                 href={t.href}
@@ -437,7 +509,7 @@ function Workspace({
                 {t.label}
               </Link>
             ))}
-            {features.protect !== "off" && (
+            {!portal && features.protect !== "off" && (
               <Link
                 href="/protect"
                 aria-current={isCurrent("/protect") ? "page" : undefined}
@@ -450,45 +522,29 @@ function Workspace({
                 )}
               </Link>
             )}
-            <div className="sidebar-label sidebar-section">
-              FOR PROFESSIONALS
-            </div>
-            <Link
-              href="/practitioner"
-              aria-current={isCurrent("/practitioner") ? "page" : undefined}
-              className={isCurrent("/practitioner") ? "selected" : ""}
-            >
-              <Stethoscope size={19} />
-              Practitioner workspace
-            </Link>
-            {allowAdmin && (
-              <Link
-                href="/review"
-                aria-current={isCurrent("/review") ? "page" : undefined}
-                className={isCurrent("/review") ? "selected" : ""}
-              >
-                <LayoutDashboard size={19} />
-                Review workspace
-              </Link>
+            {!portal && (
+              <div className="sidebar-support">
+                <span className="support-icon">
+                  <Heart size={22} />
+                </span>
+                <h3>You don’t need to have it all figured out.</h3>
+                <p>
+                  Start with a professional who can help you find your next
+                  step.
+                </p>
+                <Link href="/professionals">
+                  Explore professionals <ArrowUpRight size={16} />
+                </Link>
+              </div>
             )}
-            <div className="sidebar-support">
-              <span className="support-icon">
-                <Heart size={22} />
-              </span>
-              <h3>You don’t need to have it all figured out.</h3>
-              <p>
-                Start with a professional who can help you find your next step.
-              </p>
-              <Link href="/professionals">
-                Explore professionals <ArrowUpRight size={16} />
-              </Link>
-            </div>
             <div className="privacy">
               <ShieldCheck size={17} />
               <span>
-                Your privacy matters.
-                <br />
-                Your care information stays private.
+                {portal === portals.admin
+                  ? "Every review decision and document view is recorded."
+                  : portal
+                    ? "Client records are visible only as each client allows."
+                    : "Your privacy matters. Your care information stays private."}
               </span>
             </div>
           </aside>
@@ -523,111 +579,26 @@ function Workspace({
             {children}
             <footer className="page-footer">
               <span>© {new Date().getFullYear()} Chatbud · Nepal</span>
-              <span>Care · Store · Protect</span>
+              <span className="footer-links">
+                {portal ? (
+                  <Link href="/">Chatbud for clients</Link>
+                ) : (
+                  <>
+                    <Link href="/pro">For professionals</Link>
+                    <Link href="/admin">Team sign in</Link>
+                  </>
+                )}
+              </span>
             </footer>
           </main>
         </div>
         {modal === "auth" && (
-          <Dialog
-            title={
-              authMode === "signup"
-                ? "Create your Chatbud account"
-                : "Welcome back"
-            }
-            close={() => setModal("")}
-          >
+          <Dialog title="Your Chatbud account" close={() => setModal("")}>
             <p className="section-copy">
-              Sign in to manage your care and practitioner application.
+              Sign in or create an account to book appointments and manage your
+              care.
             </p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                run(async () => {
-                  if (!supabase)
-                    throw new Error("Account service is not configured.");
-                  const email = String(f.get("email")),
-                    password = String(f.get("password"));
-                  if (authMode === "signup") {
-                    const { error } = await supabase.auth.signUp({
-                      email,
-                      password,
-                      options: {
-                        data: { display_name: String(f.get("name")) },
-                      },
-                    });
-                    if (error) throw error;
-                    setNotice(
-                      "Check your email to verify your account before signing in.",
-                    );
-                  } else {
-                    const { error } = await supabase.auth.signInWithPassword({
-                      email,
-                      password,
-                    });
-                    if (error) throw error;
-                    setNotice("Welcome back.");
-                  }
-                  setModal("");
-                });
-              }}
-            >
-              {authMode === "signup" && (
-                <label>
-                  Your name
-                  <input
-                    name="name"
-                    required
-                    maxLength={100}
-                    autoComplete="name"
-                  />
-                </label>
-              )}
-              <label>
-                Email
-                <input
-                  name="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                />
-              </label>
-              <label>
-                Password
-                <input
-                  name="password"
-                  type="password"
-                  minLength={10}
-                  required
-                  autoComplete={
-                    authMode === "signup" ? "new-password" : "current-password"
-                  }
-                />
-              </label>
-              <button className="button full" disabled={busy}>
-                {busy
-                  ? "Please wait…"
-                  : authMode === "signup"
-                    ? "Create account"
-                    : "Sign in"}
-              </button>
-              {error && (
-                <p role="alert" className="form-error">
-                  {error}
-                </p>
-              )}
-            </form>
-            <button
-              className="text-button auth-switch"
-              onClick={() => {
-                setAuthMode(authMode === "signup" ? "signin" : "signup");
-                setError("");
-              }}
-            >
-              {authMode === "signup"
-                ? "Already have an account? Sign in"
-                : "New to Chatbud? Create an account"}
-            </button>
+            <AuthForm done={() => setModal("")} />
           </Dialog>
         )}
         {modal === "booking" && chosen && (

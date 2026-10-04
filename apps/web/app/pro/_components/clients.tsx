@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
-import { useApp } from "../_components/app";
-import { areaLabel } from "../_components/ui";
+import { useApp } from "../../_components/app";
+import { areaLabel } from "../../_components/ui";
 type Draft = {
   id?: string;
   clientId: string;

@@ -2,11 +2,10 @@
 import { useEffect, useState } from "react";
 import { Activity, ShieldCheck, Stethoscope } from "lucide-react";
 import { useApp } from "../_components/app";
-import { SignInPrompt, Summary } from "../_components/ui";
-import { Application } from "./case";
-export default function Review() {
-  const { mode, token, api, run, busy, setNotice, setError, openAuth } =
-    useApp();
+import { Summary } from "../_components/ui";
+import { Application } from "./_components/case";
+export default function Applications() {
+  const { mode, token, api, run, busy, setNotice, setError } = useApp();
   const [admin, setAdmin] = useState<any>({ applications: [], audit: [] });
   const reload = async () => setAdmin(await api("admin/overview"));
   useEffect(() => {
@@ -23,12 +22,6 @@ export default function Review() {
       active = false;
     };
   }, [mode, token]);
-  if (mode === "live" && !token)
-    return (
-      <SignInPrompt open={openAuth}>
-        Sign in with a reviewer account to open the review workspace.
-      </SignInPrompt>
-    );
   return (
     <>
       <div className="summary-grid">
@@ -49,7 +42,7 @@ export default function Review() {
         />
       </div>
       <section className="panel">
-        <h2>Provider review queue</h2>
+        <h2>Applications to be listed</h2>
         <p className="section-copy">
           Check each claim against the uploaded evidence and with the issuing
           body before approving. Approval publishes the professional’s scope.

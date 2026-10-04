@@ -50,6 +50,7 @@ async function proxy(
       "provider/service",
       "provider/availability",
       "provider/appointments",
+      "provider/profile",
       "provider/clients",
       "provider/plan",
       "health/mine",

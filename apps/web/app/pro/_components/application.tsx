@@ -10,9 +10,9 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { useApp } from "../_components/app";
-import { professions } from "../_components/ui";
-import { supabase } from "../_lib/supabase";
+import { useApp } from "../../_components/app";
+import { professions } from "../../_components/ui";
+import { supabase } from "../../_lib/supabase";
 import {
   documentKinds,
   professionGroups,
@@ -66,6 +66,7 @@ const emptyReference: Reference = {
 };
 const initial = {
   profession: "",
+  displayName: "",
   title: "",
   yearsExperience: "",
   setting: "",
@@ -244,6 +245,8 @@ export function ApplicationForm() {
     };
     if (index === 0) {
       need("profession", "Choose the category you are applying under.");
+      if (data.displayName.trim().length < 3)
+        e.displayName = "Enter the name clients will see on your profile.";
       need("title", "Enter your professional title.");
       if (
         data.yearsExperience === "" ||
@@ -403,6 +406,7 @@ export function ApplicationForm() {
         experience: data.experience.trim(),
         details: {
           practice: {
+            displayName: data.displayName.trim(),
             title: data.title.trim(),
             yearsExperience: Number(data.yearsExperience),
             setting: data.setting,
@@ -596,6 +600,13 @@ export function ApplicationForm() {
                   ))}
                 </select>
               )}
+            </Field>
+            <Field
+              label="Name on your profile"
+              hint="How clients will see you, for example “Dr Maya Sharma”."
+              error={errors.displayName}
+            >
+              {(p) => <input {...p} {...input("displayName")} maxLength={80} />}
             </Field>
             <Field
               label="Professional title"

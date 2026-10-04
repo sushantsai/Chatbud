@@ -2420,3 +2420,63 @@ fieldset {
     align-items: stretch;
   }
 }
+
+/* Professional and team portals */
+.portal-label {
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: var(--navy);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  margin-left: -28px;
+}
+a.location:hover {
+  color: var(--blue);
+}
+.portal-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.portal-entry .apply-intro {
+  margin: 0;
+}
+.portal-entry .apply-intro ul {
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+.portal-login {
+  max-width: 460px;
+  margin-top: 0;
+}
+.portal-login h2 {
+  margin-bottom: 6px;
+}
+.portal-login form {
+  margin-top: 18px;
+}
+.footer-links {
+  display: flex;
+  gap: 18px;
+}
+.footer-links a:hover {
+  color: var(--blue);
+  text-decoration: underline;
+}
+@media (max-width: 1100px) {
+  .portal-entry {
+    grid-template-columns: 1fr;
+  }
+  .portal-label {
+    margin-left: -8px;
+  }
+}
+@media (max-width: 760px) {
+  .portal-label {
+    display: none;
+  }
+}
