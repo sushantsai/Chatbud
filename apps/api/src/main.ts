@@ -37,6 +37,7 @@ import {
   profileInput,
   opsRequest,
   promoCheck,
+  researchActions,
   supportActions,
   teamActions,
   mediaTypes,
@@ -46,6 +47,7 @@ import {
 } from "./schemas";
 import helmet from "helmet";
 import { createMeetingLink, videoProvider } from "./meeting";
+import { instruments, score } from "./instruments";
 import { progress, type GoalDays } from "./progress";
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
@@ -866,6 +868,45 @@ class OpsController {
   ) {
     this.data.liveOnly(mode, session);
     return this.run(supportActions, body, auth);
+  }
+  // Field research. Study membership and roles are enforced inside the database gateway.
+  @Post("research") async research(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const { action, data } = parse(opsRequest, body);
+    const schema = Object.hasOwn(researchActions, action)
+      ? researchActions[action as keyof typeof researchActions]
+      : null;
+    if (!schema) throw new HttpException("Unknown action", 404);
+    const input: any = parse(schema, data ?? {});
+    const actor = await this.data.actor(auth);
+    if (action !== "assessment_save") {
+      const result = await this.data.rpc(
+        action,
+        actor,
+        input,
+        "chatbud_research",
+      );
+      return action === "workspace" ? { ...result, instruments } : result;
+    }
+    // Scores are computed here so that every record is scored the same way.
+    let outcome;
+    try {
+      outcome = score(input.instrument, input.answers);
+    } catch (e) {
+      throw new HttpException((e as Error).message, 400);
+    }
+    const saved = await this.data.rpc(
+      action,
+      actor,
+      { ...input, ...outcome },
+      "chatbud_research",
+    );
+    return { ...saved, ...outcome };
   }
   // Roles are enforced per action inside the database gateway.
   @Post("admin/ops") team(

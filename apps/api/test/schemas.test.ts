@@ -19,6 +19,7 @@ import {
   supportActions,
   teamActions,
   wellbeingInput,
+  researchActions,
 } from "../src/schemas";
 const id = "7b0f7c0e-6a4e-4a53-9f0e-0c2f6a1d9b11";
 const accepts = (
@@ -376,4 +377,63 @@ test("rescheduling requests as the portals send them", () => {
   accepts(rescheduleResponse, { id, accept: true });
   rejects(rescheduleResponse, { id, accept: "yes" });
   accepts(teamActions.booking_confirm, { id });
+});
+
+test("research requests as the research portal sends them", () => {
+  accepts(researchActions.study_save, { code: "slp", title: "Sleep study" });
+  rejects(researchActions.study_save, { code: "S1", title: "Sleep study" });
+  const enrol = {
+    studyId: id,
+    sex: "FEMALE",
+    birthYear: 1990,
+    district: "Lalitpur",
+    identity: { fullName: "Synthetic Person", phone: "", locality: "" },
+    consent: {
+      participation: true,
+      recording: false,
+      futureUse: true,
+      method: "SIGNED",
+      witness: "",
+    },
+  };
+  accepts(researchActions.participant_enroll, enrol);
+  rejects(researchActions.participant_enroll, {
+    ...enrol,
+    consent: { ...enrol.consent, participation: false },
+  });
+  rejects(researchActions.participant_enroll, {
+    ...enrol,
+    consent: { ...enrol.consent, method: "THUMBPRINT" },
+  });
+  accepts(researchActions.assessment_save, {
+    participantId: id,
+    instrument: "PHQ9",
+    answers: [0, 1, 2, 3, 0, 1, 2, 3, 0],
+    notes: "",
+  });
+  accepts(researchActions.assessment_save, {
+    participantId: id,
+    instrument: "MEASURES",
+    answers: { weightKg: 65, heightCm: 170, systolic: 120, diastolic: 80 },
+    notes: "",
+  });
+  rejects(researchActions.assessment_save, {
+    participantId: id,
+    instrument: "PHQ9",
+    answers: [0, 1, 2, 4],
+    notes: "",
+  });
+  accepts(researchActions.referral_save, {
+    participantId: id,
+    assessmentId: "",
+    profession: "psychiatrist",
+    urgency: "URGENT",
+    note: "",
+    treatment: "",
+  });
+  accepts(researchActions.referral_save, {
+    participantId: id,
+    id,
+    status: "CONTACTED",
+  });
 });
