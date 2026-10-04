@@ -26,6 +26,21 @@ BEGIN
  INSERT INTO core.role_assignment(user_id,role) VALUES(actor,'VERIFICATION');
  result := public.chatbud_api('admin_overview',actor);
  IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(result->'applications') a WHERE a->>'providerId'=actor::text) THEN RAISE EXCEPTION 'Reviewer queue missing application'; END IF;
+ -- An approved professional is listed before offering a service, under the name they chose.
+ denied := false;
+ BEGIN PERFORM public.chatbud_api('profile_save',actor,'{"displayName":"Too Early"}'::jsonb);
+ EXCEPTION WHEN insufficient_privilege THEN denied := true;
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'Unapproved applicant changed a public profile'; END IF;
+ UPDATE care.provider SET status='APPROVED' WHERE id=actor;
+ UPDATE care.provider_scope SET status='APPROVED' WHERE provider_id=actor;
+ PERFORM public.chatbud_api('profile_save',actor,'{"displayName":"Dr Transactional Test"}'::jsonb);
+ result := public.chatbud_api('catalog');
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(result->'providers') p
+  WHERE p->>'id'=actor::text AND p->>'name'='Dr Transactional Test' AND p->>'serviceId' IS NULL AND p->>'profession'='dietitian') THEN
+  RAISE EXCEPTION 'Approved professional without a service is missing from the catalog';
+ END IF;
+ IF public.chatbud_api('dashboard',actor)->>'displayName'<>'Dr Transactional Test' THEN RAISE EXCEPTION 'Dashboard missing the display name'; END IF;
  UPDATE core.app_user SET status='SUSPENDED' WHERE id=actor;
  denied := false;
  BEGIN

@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 import { FileText } from "lucide-react";
-import { useApp } from "../_components/app";
-import { professions } from "../_components/ui";
+import { useApp } from "../../_components/app";
+import { professions } from "../../_components/ui";
 const documentLabels: Record<string, string> = {
   identity: "Government photo ID",
   qualification: "Qualification certificate",

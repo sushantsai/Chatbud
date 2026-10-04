@@ -39,7 +39,10 @@ export default function Appointments() {
         if (active) setMine(data.appointments);
       })
       .catch((e) => {
-        if (active && e.name !== "AbortError") setError(e.message);
+        if (active && e.name !== "AbortError") {
+          setError(e.message);
+          setMine([]);
+        }
       });
     return () => {
       active = false;

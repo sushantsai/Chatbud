@@ -72,7 +72,7 @@ function Directory() {
     (p: any) =>
       allowed.includes(p.profession) &&
       (profession === "all" || p.profession === profession) &&
-      p.price <= budget &&
+      (p.price === null || p.price <= budget) &&
       `${p.name} ${p.profession} ${p.bio} ${(p.focus || []).join(" ")}`
         .toLowerCase()
         .includes(query.toLowerCase()),
@@ -184,7 +184,7 @@ function Directory() {
                       Clear filters
                     </button>
                   ) : (
-                    <Link className="button" href="/practitioner">
+                    <Link className="button" href="/pro">
                       Apply as a professional
                     </Link>
                   )}
@@ -192,7 +192,10 @@ function Directory() {
               ) : (
                 <div className="provider-grid">
                   {providers.map((p: any, i: number) => (
-                    <article className="provider-card" key={p.serviceId}>
+                    <article
+                      className="provider-card"
+                      key={p.serviceId || p.id}
+                    >
                       <div className="card-top">
                         <div
                           className={`avatar tone-${p.color || ["blue", "orange", "green", "purple"][i % 4]}`}
@@ -218,9 +221,11 @@ function Directory() {
                       </p>
                       <p className="bio">{p.bio}</p>
                       <div className="tags">
-                        {(p.focus || [p.service]).map((f: string) => (
-                          <span key={f}>{f}</span>
-                        ))}
+                        {(p.focus || (p.service ? [p.service] : [])).map(
+                          (f: string) => (
+                            <span key={f}>{f}</span>
+                          ),
+                        )}
                       </div>
                       <div className="provider-meta">
                         <span>
@@ -235,23 +240,34 @@ function Directory() {
                             )
                             .join(", ")}
                         </span>
-                        <span>
-                          <Clock size={14} />
-                          {p.duration} min
-                        </span>
+                        {p.duration && (
+                          <span>
+                            <Clock size={14} />
+                            {p.duration} min
+                          </span>
+                        )}
                       </div>
-                      <footer>
-                        <div>
-                          <strong>{money(p.price)}</strong>
-                          <span>per session</span>
-                        </div>
-                        <button
-                          className="button"
-                          onClick={() => openBooking(p)}
-                        >
-                          View availability
-                        </button>
-                      </footer>
+                      {p.serviceId ? (
+                        <footer>
+                          <div>
+                            <strong>{money(p.price)}</strong>
+                            <span>per session</span>
+                          </div>
+                          <button
+                            className="button"
+                            onClick={() => openBooking(p)}
+                          >
+                            View availability
+                          </button>
+                        </footer>
+                      ) : (
+                        <footer>
+                          <div>
+                            <strong>Bookings open soon</strong>
+                            <span>Setting up services and hours</span>
+                          </div>
+                        </footer>
+                      )}
                     </article>
                   ))}
                 </div>

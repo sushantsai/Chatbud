@@ -46,7 +46,10 @@ export default function MyHealth() {
         if (active) setHealth(data);
       })
       .catch((e) => {
-        if (active && e.name !== "AbortError") setError(e.message);
+        if (active && e.name !== "AbortError") {
+          setError(e.message);
+          setHealth({ plans: [], goals: [], professionals: [], consent: "" });
+        }
       });
     return () => {
       active = false;
