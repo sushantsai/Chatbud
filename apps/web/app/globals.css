@@ -2736,3 +2736,9 @@ a.location:hover {
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 760px) {
+  .booking-row .status {
+    justify-self: start;
+  }
+}
