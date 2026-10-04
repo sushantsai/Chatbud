@@ -29,18 +29,24 @@ import {
   UserRound,
   Users,
   X,
+  LifeBuoy,
+  Package,
 } from "lucide-react";
 import { features } from "../_lib/features";
+import { canOpen, type TeamArea } from "../_lib/roles";
+import { unitPrice } from "../_lib/store";
 import { supabase } from "../_lib/supabase";
 import { AuthForm } from "./auth-form";
 import { BookingForm } from "./booking";
 import { Dialog, money } from "./ui";
-const tabs = [
+type Tab = { href: string; label: string; icon: any; area?: TeamArea };
+const tabs: Tab[] = [
   { href: "/", label: "Home", icon: House },
   { href: "/professionals", label: "Professionals", icon: Users },
   { href: "/appointments", label: "Appointments", icon: CalendarDays },
   { href: "/store", label: "Store", icon: ShoppingBag },
   { href: "/my-health", label: "My Health", icon: HeartPulse },
+  { href: "/help", label: "Help", icon: LifeBuoy },
 ];
 const headings: Record<string, [string, string, string]> = {
   "/": [
@@ -95,8 +101,43 @@ const headings: Record<string, [string, string, string]> = {
   ],
   "/admin": [
     "CHATBUD TEAM",
+    "Operations at a glance.",
+    "What needs attention across applications, support, bookings and the store.",
+  ],
+  "/admin/applications": [
+    "CHATBUD TEAM",
     "Care starts with trust.",
     "Review professionals’ applications to be listed on Chatbud.",
+  ],
+  "/admin/support": [
+    "CHATBUD TEAM",
+    "Customer support",
+    "Handle, escalate and resolve concerns from clients and professionals.",
+  ],
+  "/admin/bookings": [
+    "CHATBUD TEAM",
+    "Booking oversight",
+    "Follow requests through to confirmation, and step in when needed.",
+  ],
+  "/admin/catalogue": [
+    "CHATBUD TEAM",
+    "Catalogue",
+    "Products, stock, offers and promo codes for the Chatbud Store.",
+  ],
+  "/admin/team": [
+    "CHATBUD TEAM",
+    "Team and roles",
+    "Decide who on the team can do what.",
+  ],
+  "/help": [
+    "HELP",
+    "We are here to put things right.",
+    "Raise a concern and follow it until it is resolved.",
+  ],
+  "/pro/help": [
+    "FOR PROFESSIONALS",
+    "Help",
+    "Raise a concern with the Chatbud team and follow its progress.",
   ],
   "/protect": [
     "CHATBUD PROTECT",
@@ -104,7 +145,7 @@ const headings: Record<string, [string, string, string]> = {
     "Health insurance from licensed partners.",
   ],
 };
-const portals = {
+const portals: Record<"pro" | "admin", { label: string; tabs: Tab[] }> = {
   pro: {
     label: "For professionals",
     tabs: [
@@ -113,11 +154,44 @@ const portals = {
       { href: "/pro/clients", label: "Clients", icon: Users },
       { href: "/pro/services", label: "Services & hours", icon: Stethoscope },
       { href: "/pro/profile", label: "Profile", icon: UserRound },
+      { href: "/pro/help", label: "Help", icon: LifeBuoy },
     ],
   },
   admin: {
     label: "Chatbud team",
-    tabs: [{ href: "/admin", label: "Applications", icon: ShieldCheck }],
+    tabs: [
+      {
+        href: "/admin",
+        label: "Dashboard",
+        icon: LayoutDashboard,
+        area: "dashboard",
+      },
+      {
+        href: "/admin/applications",
+        label: "Applications",
+        icon: ShieldCheck,
+        area: "applications",
+      },
+      {
+        href: "/admin/support",
+        label: "Grievances",
+        icon: LifeBuoy,
+        area: "support",
+      },
+      {
+        href: "/admin/bookings",
+        label: "Bookings",
+        icon: CalendarDays,
+        area: "support",
+      },
+      {
+        href: "/admin/catalogue",
+        label: "Catalogue",
+        icon: Package,
+        area: "catalogue",
+      },
+      { href: "/admin/team", label: "Team", icon: Users, area: "team" },
+    ],
   },
 };
 type App = {
@@ -286,9 +360,25 @@ function Workspace({
   }
   useEffect(() => {
     let active = true;
-    api("catalog")
-      .then((data) => {
-        if (active) setCatalog(data);
+    Promise.all([
+      api("catalog"),
+      // Offers and categories are decoration: the store still works without them.
+      mode === "live"
+        ? api("store/offers").catch(() => ({ products: [] }))
+        : { products: [] },
+    ])
+      .then(([data, store]) => {
+        if (!active) return;
+        const extra = new Map<string, any>(
+          store.products.map((p: any) => [p.id, p]),
+        );
+        setCatalog({
+          ...data,
+          products: data.products.map((p: any) => ({
+            ...p,
+            ...extra.get(p.id),
+          })),
+        });
       })
       .catch((e) => {
         if (active && e.name !== "AbortError") {
@@ -354,15 +444,11 @@ function Workspace({
   };
   const cartItems = catalog.products.filter((p: any) => cart[p.id]);
   const total = cartItems.reduce(
-    (s: number, p: any) => s + p.price * cart[p.id],
+    (s: number, p: any) => s + unitPrice(p) * cart[p.id],
     0,
   );
   const cartCount = Object.values(cart).reduce((a, b) => a + b, 0);
-  const allowAdmin =
-    mode === "demo" ||
-    dashboard.roles?.some((r: string) =>
-      ["VERIFICATION", "CLINICAL_REVIEW"].includes(r),
-    );
+  const allowAdmin = mode === "demo" || canOpen(dashboard.roles, "dashboard");
   // The professional and team portals have their own navigation and sign-in.
   // "/pro" must not match "/professionals" or "/protect".
   const under = (base: string) =>
@@ -372,14 +458,18 @@ function Workspace({
     : under("/admin")
       ? portals.admin
       : null;
-  const nav = portal ? portal.tabs : tabs;
+  // Team members see only the areas their roles open.
+  const nav = (portal ? portal.tabs : tabs).filter(
+    (t) => !t.area || mode === "demo" || canOpen(dashboard.roles, t.area),
+  );
   const home = portal ? portal.tabs[0].href : "/";
+  const first = nav[0] || portal?.tabs[0] || tabs[0];
   const isCurrent = (href: string) =>
     href === home ? pathname === home : under(href);
   const heading = headings[pathname] || headings[home];
   const crumb =
     nav.find((t) => t.href !== home && isCurrent(t.href))?.label ||
-    (pathname === "/protect" ? "Protect" : nav[0].label);
+    (pathname === "/protect" ? "Protect" : first.label);
   const signOut = () =>
     run(async () => {
       await supabase?.auth.signOut();
@@ -699,7 +789,7 @@ function Workspace({
                     <div className="cart-row" key={p.id}>
                       <div>
                         <strong>{p.name}</strong>
-                        <p>{money(p.price)}</p>
+                        <p>{money(unitPrice(p))}</p>
                       </div>
                       <div className="quantity">
                         <button
@@ -731,6 +821,7 @@ function Workspace({
                   <span>Subtotal</span>
                   <strong>{money(total)}</strong>
                 </div>
+                {mode === "live" && <PromoCode total={total} key={total} />}
                 <p className="form-note">
                   {mode === "demo"
                     ? "Preview stock is reserved for 10 minutes. No payment is collected and no goods are dispatched."
@@ -774,5 +865,69 @@ function Workspace({
         )}
       </div>
     </AppContext.Provider>
+  );
+}
+
+// Checks a promo code against the current bag total. Remounted whenever the total changes.
+function PromoCode({ total }: { total: number }) {
+  const { api } = useApp();
+  const [code, setCode] = useState(""),
+    [result, setResult] = useState<any>(null),
+    [checking, setChecking] = useState(false);
+  return (
+    <div className="promo">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setChecking(true);
+          api("store/promo", "POST", { code: code.trim(), subtotal: total })
+            .then(setResult)
+            .catch(() =>
+              setResult({
+                valid: false,
+                message: "This code could not be checked.",
+              }),
+            )
+            .finally(() => setChecking(false));
+        }}
+      >
+        <div className="field">
+          <label htmlFor="promo-entry">Promo code</label>
+          <input
+            id="promo-entry"
+            value={code}
+            maxLength={20}
+            autoComplete="off"
+            onChange={(e) => {
+              setCode(e.target.value.toUpperCase());
+              setResult(null);
+            }}
+          />
+        </div>
+        <button
+          className="button secondary small"
+          disabled={checking || code.trim().length < 4}
+        >
+          {checking ? "Checking…" : "Apply"}
+        </button>
+      </form>
+      {result && !result.valid && (
+        <p className="field-error" role="alert">
+          {result.message}
+        </p>
+      )}
+      {result?.valid && (
+        <>
+          <div className="cart-total discount">
+            <span>{result.code}</span>
+            <strong>− {money(result.discount)}</strong>
+          </div>
+          <div className="cart-total">
+            <span>Total</span>
+            <strong>{money(total - result.discount)}</strong>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

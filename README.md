@@ -13,7 +13,7 @@ Live care works end to end without payment: practitioners apply with verificatio
 
 ## App structure
 
-The client site has five tabs, each its own route: Home (`/`), Professionals (`/professionals`), Appointments (`/appointments`), Store (`/store`) and My Health (`/my-health`), plus `/protect`. Professionals have their own portal under `/pro` (dashboard, appointments, clients, services and hours, profile) with its own sign-in and application flow. The Chatbud team signs in at `/admin`, which requires a reviewer role. All three use the same account system; the server checks roles on every request. Shared session, catalog and bag state lives in `apps/web/app/_components/app.tsx`.
+The client site has five tabs, each its own route: Home (`/`), Professionals (`/professionals`), Appointments (`/appointments`), Store (`/store`) and My Health (`/my-health`), plus `/protect`. Professionals have their own portal under `/pro` (dashboard, appointments, clients, services and hours, profile) with its own sign-in and application flow. The Chatbud team signs in at `/admin`: a dashboard, applications, grievances, bookings, catalogue (products, stock, offers, promo codes) and team roles, each opened by a separate role (verification, clinical review, support, catalogue, administrator). Clients and professionals raise concerns at `/help` and `/pro/help`. All three use the same account system; the server checks roles on every request. Shared session, catalog and bag state lives in `apps/web/app/_components/app.tsx`.
 
 Each vertical is `live`, `soon` (shown as coming soon) or `off` (hidden) in `apps/web/app/_lib/features.ts`. Medicines and insurance are `soon`; content is `off`.
 
@@ -47,7 +47,7 @@ npm run build
 node scripts/smoke.mjs
 ```
 
-`npm test` runs the API's request-contract tests. The smoke script requires both development servers. It checks preview isolation, bookings, inventory, idempotency, practitioner review and live authentication gates. `supabase/tests/gateway.sql` checks live gateway authorization and persistence inside a transaction that rolls back all test records. `supabase/tests/care.sql` does the same for review decisions, services, availability, slots and appointment requests. `supabase/tests/health.sql` covers goals, scope-limited plans and consent-gated sharing.
+`npm test` runs the API's request-contract tests. The smoke script requires both development servers. It checks preview isolation, bookings, inventory, idempotency, practitioner review and live authentication gates. `supabase/tests/gateway.sql` checks live gateway authorization and persistence inside a transaction that rolls back all test records. `supabase/tests/care.sql` does the same for review decisions, services, availability, slots and appointment requests. `supabase/tests/health.sql` covers goals, scope-limited plans and consent-gated sharing. `supabase/tests/ops.sql` covers grievances, booking oversight, catalogue, offers, promo codes and team roles.
 
 ## Architecture and deployment
 

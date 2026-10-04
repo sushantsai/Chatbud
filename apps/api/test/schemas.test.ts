@@ -11,7 +11,10 @@ import {
   profileInput,
   reviewDecision,
   serviceInput,
+  promoCheck,
   slotQuery,
+  supportActions,
+  teamActions,
 } from "../src/schemas";
 const id = "7b0f7c0e-6a4e-4a53-9f0e-0c2f6a1d9b11";
 const accepts = (
@@ -219,4 +222,119 @@ test("a full practitioner application as the form submits it", () => {
       declarations: { ...details.declarations, consentToVerify: false },
     },
   });
+});
+
+test("support requests as the help page sends them", () => {
+  accepts(supportActions.ticket_create, {
+    category: "BOOKING",
+    subject: "Not confirmed",
+    body: "I requested a time two days ago.",
+    appointmentId: "",
+    as: "CLIENT",
+  });
+  accepts(supportActions.ticket_create, {
+    category: "OTHER",
+    subject: "Payout question",
+    body: "When are payouts made to professionals?",
+    appointmentId: id,
+    as: "PROFESSIONAL",
+  });
+  rejects(supportActions.ticket_create, {
+    category: "BOOKING",
+    subject: "Hi",
+    body: "short",
+    appointmentId: "",
+    as: "CLIENT",
+  });
+  accepts(supportActions.ticket_reply, { id, body: "Thank you." });
+  accepts(supportActions.tickets_mine, {});
+});
+
+test("team actions as the admin portal sends them", () => {
+  accepts(teamActions.ticket_update, { id, status: "ESCALATED" });
+  accepts(teamActions.ticket_update, { id, assign: "me" });
+  rejects(teamActions.ticket_update, { id, status: "DELETED" });
+  accepts(teamActions.ticket_note, {
+    id,
+    body: "Called the client.",
+    internal: true,
+  });
+  accepts(teamActions.booking_cancel, {
+    id,
+    reason: "Professional unavailable; client informed.",
+  });
+  rejects(teamActions.booking_cancel, { id, reason: "no" });
+  accepts(teamActions.booking_confirm, {
+    id,
+    meetingUrl: "https://meet.example/abc",
+  });
+  accepts(teamActions.product_save, {
+    title: "Yoga mat",
+    description: "A non-slip mat for home practice.",
+    category: "FITNESS",
+    price: 2000,
+  });
+  rejects(teamActions.product_save, {
+    title: "Yoga mat",
+    description: "A non-slip mat for home practice.",
+    category: "MEDICINE",
+    price: 2000,
+  });
+  accepts(teamActions.product_status, { id, status: "PUBLISHED" });
+  accepts(teamActions.stock_receive, { id, quantity: 25 });
+  rejects(teamActions.stock_receive, { id, quantity: 0 });
+  accepts(teamActions.offer_save, {
+    title: "Dashain offer",
+    kind: "PERCENT",
+    value: 20,
+    productId: "",
+    endsOn: "2026-10-31",
+    active: true,
+  });
+  rejects(teamActions.offer_save, {
+    title: "Too generous",
+    kind: "PERCENT",
+    value: 95,
+    productId: "",
+    endsOn: "",
+    active: true,
+  });
+  accepts(teamActions.promo_save, {
+    code: "welcome10",
+    kind: "PERCENT",
+    value: 10,
+    minSubtotal: 500,
+    endsOn: "",
+    maxRedemptions: "",
+    active: true,
+  });
+  accepts(teamActions.promo_save, {
+    code: "FLAT200",
+    kind: "FIXED",
+    value: 200,
+    minSubtotal: 0,
+    endsOn: "2026-12-31",
+    maxRedemptions: 100,
+    active: true,
+  });
+  rejects(teamActions.promo_save, {
+    code: "no spaces",
+    kind: "FIXED",
+    value: 200,
+    minSubtotal: 0,
+    endsOn: "",
+    maxRedemptions: "",
+    active: true,
+  });
+  accepts(teamActions.team_role_set, {
+    email: "agent@example.invalid",
+    role: "SUPPORT",
+    grant: true,
+  });
+  rejects(teamActions.team_role_set, {
+    email: "agent@example.invalid",
+    role: "CONSUMER",
+    grant: true,
+  });
+  accepts(promoCheck, { code: "WELCOME10", subtotal: 1500 });
 });
