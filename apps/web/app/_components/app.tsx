@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { features } from "../_lib/features";
 import { supabase } from "../_lib/supabase";
+import { BookingForm } from "./booking";
 import { Dialog, money } from "./ui";
 const tabs = [
   { href: "/", label: "Home", icon: House },
@@ -91,6 +92,7 @@ type App = {
   busy: boolean;
   api: (path: string, method?: string, body?: unknown) => Promise<any>;
   run: (action: () => Promise<void>) => Promise<void>;
+  error: string;
   setNotice: (notice: string) => void;
   setError: (error: string) => void;
   openAuth: () => void;
@@ -335,6 +337,7 @@ function Workspace({
     busy,
     api,
     run,
+    error,
     setNotice,
     setError,
     openAuth,
@@ -705,10 +708,7 @@ function Workspace({
                 )}
               </form>
             ) : (
-              <div className="empty-inline">
-                Live appointment booking will open after provider scheduling and
-                payment onboarding.
-              </div>
+              <BookingForm provider={chosen} close={() => setModal("")} />
             )}
           </Dialog>
         )}

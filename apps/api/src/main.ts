@@ -27,6 +27,9 @@ const profession = z.enum([
   "counselor",
   "nutritionist",
   "dietitian",
+  "personal_trainer",
+  "fitness_coach",
+  "yoga_instructor",
 ]);
 const text = (max: number, min = 1) => z.string().trim().min(min).max(max);
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -131,6 +134,63 @@ const application = z
     experience: z.string().trim().min(10).max(1000),
     details: applicationDetails.optional(),
   })
+  .strict();
+const clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const slotQuery = z.object({ serviceId: z.string().uuid(), date: day }).strict();
+const appointmentRequest = z
+  .object({
+    serviceId: z.string().uuid(),
+    startsAt: z.string().datetime(),
+    idempotencyKey: z.string().uuid(),
+  })
+  .strict();
+const appointmentRef = z.object({ id: z.string().uuid() }).strict();
+const serviceInput = z
+  .object({
+    id: z.string().uuid().optional(),
+    profession,
+    title: text(120, 3),
+    durationMinutes: z.number().int().min(15).max(180),
+    price: z.number().min(0).max(100000),
+    active: z.boolean(),
+  })
+  .strict();
+const availabilityInput = z
+  .object({
+    rules: z
+      .array(
+        z
+          .object({
+            weekday: z.number().int().min(0).max(6),
+            start: clock,
+            end: clock,
+          })
+          .strict()
+          .refine((r) => r.end > r.start, "Each day must end after it starts"),
+      )
+      .max(21),
+  })
+  .strict();
+const appointmentDecision = z
+  .object({
+    id: z.string().uuid(),
+    decision: z.enum(["CONFIRM", "DECLINE"]),
+    meetingUrl: z.string().url().startsWith("https://").max(300).optional(),
+  })
+  .strict()
+  .refine(
+    (d) => d.decision !== "CONFIRM" || !!d.meetingUrl,
+    "Add the meeting link for this appointment",
+  );
+const reviewDecision = z
+  .object({
+    caseId: z.string().uuid(),
+    decision: z.enum(["APPROVED", "REJECTED", "NEEDS_INFORMATION"]),
+    rationale: text(1000, 0),
+  })
+  .strict();
+const documentRef = z
+  .object({ caseId: z.string().uuid(), path: text(200) })
   .strict();
 const mediaTypes = {
   "application/pdf": "pdf",
@@ -341,8 +401,22 @@ class DataService {
     writeFileSync(file + ".tmp", JSON.stringify(state), { mode: 0o600 });
     renameSync(file + ".tmp", file);
   }
-  async rpc(action: string, actor: string | null = null, data: any = {}) {
-    const { data: result, error } = await this.db.rpc("chatbud_api", {
+  // Review, practice setup and appointment actions live in their own gateway.
+  care(action: string, actor: string | null = null, data: any = {}) {
+    return this.rpc(action, actor, data, "chatbud_care");
+  }
+  // Signed-in practice and appointment features have no preview equivalent.
+  liveOnly(mode: string | undefined, signed: string | undefined) {
+    if (this.preview(mode, signed))
+      throw new HttpException("This is not part of the preview.", 404);
+  }
+  async rpc(
+    action: string,
+    actor: string | null = null,
+    data: any = {},
+    gateway = "chatbud_api",
+  ) {
+    const { data: result, error } = await this.db.rpc(gateway, {
       p_action: action,
       p_actor: actor,
       p_data: data,
@@ -463,7 +537,10 @@ class AppController {
     // Evidence must be a file this applicant uploaded through a signed URL.
     if (input.details?.documents.some((d) => !d.path.startsWith(`${actor}/`)))
       throw new HttpException("Upload your documents again.", 400);
-    return this.data.rpc("provider_apply", actor, input);
+    return this.data.rpc("provider_apply", actor, {
+      ...input,
+      details: { ...input.details, profession: input.profession },
+    });
   }
   @Post("providers/documents") async document(
     @Body() body: unknown,
@@ -633,7 +710,7 @@ class AppController {
   ) {
     const state = this.data.preview(mode, session);
     if (state) return { applications: state.applications, audit: state.audit };
-    return this.data.rpc("admin_overview", await this.data.actor(auth));
+    return this.data.care("admin_queue", await this.data.actor(auth));
   }
   @Post("admin/review") async review(
     @Body() body: unknown,
@@ -642,13 +719,12 @@ class AppController {
     @Headers("x-chatbud-demo-session") session: string,
   ) {
     const state = this.data.preview(mode, session);
-    if (!state) {
-      await this.data.actor(auth);
-      throw new HttpException(
-        "Credential review workflow is not yet enabled.",
-        503,
+    if (!state)
+      return this.data.care(
+        "admin_review",
+        await this.data.actor(auth),
+        parse(reviewDecision, body),
       );
-    }
     const input = parse(
       z
         .object({
@@ -669,7 +745,128 @@ class AppController {
     return row;
   }
 }
-@Module({ controllers: [AppController], providers: [DataService] })
+@Controller()
+class CareController {
+  constructor(@Inject(DataService) private readonly data: DataService) {}
+  @Get("appointments/slots") slots(
+    @Query("serviceId") serviceId: string,
+    @Query("date") date: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.data.care("slots", null, parse(slotQuery, { serviceId, date }));
+  }
+  @Get("appointments") async mine(
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.data.care("appointments_mine", await this.data.actor(auth));
+  }
+  @Post("appointments") async request(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(appointmentRequest, body);
+    return this.data.care(
+      "appointment_request",
+      await this.data.actor(auth),
+      input,
+    );
+  }
+  @Post("appointments/cancel") async cancel(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(appointmentRef, body);
+    return this.data.care(
+      "appointment_cancel",
+      await this.data.actor(auth),
+      input,
+    );
+  }
+  @Get("provider/workspace") async workspace(
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.data.care("provider_workspace", await this.data.actor(auth));
+  }
+  @Post("provider/service") async service(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(serviceInput, body);
+    return this.data.care(
+      "provider_service_save",
+      await this.data.actor(auth),
+      input,
+    );
+  }
+  @Post("provider/availability") async availability(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(availabilityInput, body);
+    return this.data.care(
+      "provider_availability_save",
+      await this.data.actor(auth),
+      input,
+    );
+  }
+  @Post("provider/appointments") async decide(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(appointmentDecision, body);
+    return this.data.care(
+      "provider_appointment_decide",
+      await this.data.actor(auth),
+      input,
+    );
+  }
+  @Post("admin/document") async evidence(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(documentRef, body);
+    // The gateway checks the reviewer role and that the file belongs to this application.
+    await this.data.care("admin_document", await this.data.actor(auth), input);
+    const { data, error } = await this.data.db.storage
+      .from("credential-evidence")
+      .createSignedUrl(input.path, 120);
+    if (error || !data) {
+      console.error("Evidence link failed:", error?.message);
+      throw new HttpException("This document could not be opened.", 500);
+    }
+    return { url: data.signedUrl };
+  }
+}
+@Module({
+  controllers: [AppController, CareController],
+  providers: [DataService],
+})
 class AppModule {}
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {

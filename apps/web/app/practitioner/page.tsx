@@ -1,15 +1,36 @@
 "use client";
+import { useEffect, useState } from "react";
 import { Check, FileText, ShieldCheck, Timer } from "lucide-react";
 import { useApp } from "../_components/app";
 import { SignInPrompt } from "../_components/ui";
 import { ApplicationForm } from "./application";
+import { PracticeWorkspace } from "./workspace";
 const stages = [
   ["Submitted", "We have your application and documents."],
   ["Under review", "We verify your identity, qualifications and registration."],
   ["Decision", "You will hear from us by email with the outcome."],
 ];
 export default function Practitioner() {
-  const { mode, token, dashboard, openAuth } = useApp();
+  const { mode, token, dashboard, api, setError, openAuth } = useApp();
+  const [workspace, setWorkspace] = useState<any>(null);
+  const live = mode === "live";
+  const reload = async () => setWorkspace(await api("provider/workspace"));
+  // Reloads whenever the application status changes, including right after applying.
+  const applied = dashboard.providerApplication?.status;
+  useEffect(() => {
+    if (!live || !token) return;
+    let active = true;
+    api("provider/workspace")
+      .then((data) => {
+        if (active) setWorkspace(data);
+      })
+      .catch((e) => {
+        if (active && e.name !== "AbortError") setError(e.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [live, token, applied]);
   if (mode === "live" && !token)
     return (
       <>
@@ -51,6 +72,14 @@ export default function Practitioner() {
       </>
     );
   const status = dashboard.providerApplication?.status;
+  if (live && status === "APPROVED")
+    return workspace?.status === "APPROVED" ? (
+      <PracticeWorkspace workspace={workspace} reload={reload} />
+    ) : (
+      <div className="loading" role="status">
+        Loading your practice…
+      </div>
+    );
   if (status && !["APPLIED", "REJECTED"].includes(status)) {
     const stage = status === "UNDER_REVIEW" ? 1 : 2;
     return (
@@ -100,12 +129,23 @@ export default function Practitioner() {
   }
   return (
     <>
-      {status === "REJECTED" && (
+      {(status === "REJECTED" ||
+        workspace?.caseStatus === "NEEDS_INFORMATION") && (
         <div className="application-status">
           <ShieldCheck size={19} />
           <div>
-            <strong>Your previous application was not approved</strong>
-            <p>You can update your details and apply again.</p>
+            <strong>
+              {status === "REJECTED"
+                ? "Your previous application was not approved"
+                : "We need more information to continue"}
+            </strong>
+            <p>
+              {workspace?.rationale ||
+                "You can update your details and apply again."}
+            </p>
+            {workspace?.rationale && (
+              <p>Update your details below and submit again.</p>
+            )}
           </div>
         </div>
       )}
