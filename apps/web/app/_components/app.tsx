@@ -10,7 +10,6 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Activity,
   ArrowUpRight,
   CalendarDays,
   Check,
@@ -41,11 +40,28 @@ import { supabase } from "../_lib/supabase";
 import { AuthForm } from "./auth-form";
 import { BookingForm } from "./booking";
 import { Dialog, money } from "./ui";
-type Tab = { href: string; label: string; icon: any; area?: TeamArea };
+type Tab = {
+  href: string;
+  label: string;
+  // A shorter name for the phone tab bar, where five labels share one row.
+  short?: string;
+  icon: any;
+  area?: TeamArea;
+};
 const tabs: Tab[] = [
   { href: "/", label: "Home", icon: House },
-  { href: "/professionals", label: "Professionals", icon: Users },
-  { href: "/appointments", label: "Appointments", icon: CalendarDays },
+  {
+    href: "/professionals",
+    label: "Professionals",
+    short: "Care",
+    icon: Users,
+  },
+  {
+    href: "/appointments",
+    label: "Appointments",
+    short: "Bookings",
+    icon: CalendarDays,
+  },
   { href: "/store", label: "Store", icon: ShoppingBag },
   { href: "/my-health", label: "My Health", icon: HeartPulse },
   { href: "/help", label: "Help", icon: LifeBuoy },
@@ -527,7 +543,7 @@ function Workspace({
   };
   return (
     <AppContext.Provider value={app}>
-      <div className="app">
+      <div className={`app ${portal ? "portal" : "client"}`}>
         <header className="topbar">
           <Link className="brand" href={home}>
             <span className="brand-icon">
@@ -606,74 +622,75 @@ function Workspace({
           </div>
         )}
         <div className="workspace">
-          <aside className="sidebar">
-            <div className="sidebar-label">
-              {portal ? portal.label.toUpperCase() : "YOUR WELLBEING"}
-            </div>
-            {nav.map((t) => (
-              <Link
-                key={t.href}
-                href={t.href}
-                aria-current={isCurrent(t.href) ? "page" : undefined}
-                className={isCurrent(t.href) ? "selected" : ""}
-              >
-                <t.icon size={19} />
-                {t.label}
-              </Link>
-            ))}
-            {!portal && features.protect !== "off" && (
-              <Link
-                href="/protect"
-                aria-current={isCurrent("/protect") ? "page" : undefined}
-                className={isCurrent("/protect") ? "selected" : ""}
-              >
-                <Umbrella size={19} />
-                Protect
-                {features.protect === "soon" && (
-                  <span className="soon-badge">Soon</span>
-                )}
-              </Link>
-            )}
-            {!portal && (
-              <div className="sidebar-support">
-                <span className="support-icon">
-                  <Heart size={22} />
-                </span>
-                <h3>You don’t need to have it all figured out.</h3>
-                <p>
-                  Start with a professional who can help you find your next
-                  step.
-                </p>
-                <Link href="/professionals">
-                  Explore professionals <ArrowUpRight size={16} />
+          {portal && (
+            <aside className="sidebar">
+              <div className="sidebar-label">
+                {portal ? portal.label.toUpperCase() : "YOUR WELLBEING"}
+              </div>
+              {nav.map((t) => (
+                <Link
+                  key={t.href}
+                  href={t.href}
+                  aria-current={isCurrent(t.href) ? "page" : undefined}
+                  className={isCurrent(t.href) ? "selected" : ""}
+                >
+                  <t.icon size={19} />
+                  {t.label}
                 </Link>
+              ))}
+              {!portal && features.protect !== "off" && (
+                <Link
+                  href="/protect"
+                  aria-current={isCurrent("/protect") ? "page" : undefined}
+                  className={isCurrent("/protect") ? "selected" : ""}
+                >
+                  <Umbrella size={19} />
+                  Protect
+                  {features.protect === "soon" && (
+                    <span className="soon-badge">Soon</span>
+                  )}
+                </Link>
+              )}
+              {!portal && (
+                <div className="sidebar-support">
+                  <span className="support-icon">
+                    <Heart size={22} />
+                  </span>
+                  <h3>You don’t need to have it all figured out.</h3>
+                  <p>
+                    Start with a professional who can help you find your next
+                    step.
+                  </p>
+                  <Link href="/professionals">
+                    Explore professionals <ArrowUpRight size={16} />
+                  </Link>
+                </div>
+              )}
+              <div className="privacy">
+                <ShieldCheck size={17} />
+                <span>
+                  {portal === portals.admin
+                    ? "Every review decision and document view is recorded."
+                    : portal === portals.research
+                      ? "Participant data is confidential. Record only what the study protocol allows."
+                      : portal
+                        ? "Client records are visible only as each client allows."
+                        : "Your privacy matters. Your care information stays private."}
+                </span>
+              </div>
+            </aside>
+          )}
+          <main data-area={need?.area}>
+            {portal && (
+              <div className="breadcrumb">
+                Chatbud <span>/</span> {crumb}
               </div>
             )}
-            <div className="privacy">
-              <ShieldCheck size={17} />
-              <span>
-                {portal === portals.admin
-                  ? "Every review decision and document view is recorded."
-                  : portal === portals.research
-                    ? "Participant data is confidential. Record only what the study protocol allows."
-                    : portal
-                      ? "Client records are visible only as each client allows."
-                      : "Your privacy matters. Your care information stays private."}
-              </span>
-            </div>
-          </aside>
-          <main data-area={need?.area}>
-            <div className="breadcrumb">
-              Chatbud <span>/</span> {crumb}
-            </div>
             <div className={`page-heading${pathname === "/" ? " quiet" : ""}`}>
               <div>
                 <span className="eyebrow">{heading[0]}</span>
                 <h1>{heading[1]}</h1>
                 <p>{heading[2]}</p>
-              </div>
-              <div className="heading-mark">
-                <Activity size={37} strokeWidth={1.4} />
               </div>
             </div>
             {notice && (
@@ -698,6 +715,8 @@ function Workspace({
                   <Link href="/">Chatbud for clients</Link>
                 ) : (
                   <>
+                    <Link href="/help">Help</Link>
+                    <a href="tel:1166">In crisis? Call 1166</a>
                     <Link href="/pro">For professionals</Link>
                     <Link href="/research">Research</Link>
                     <Link href="/admin">Team sign in</Link>
@@ -706,6 +725,21 @@ function Workspace({
               </span>
             </footer>
           </main>
+          {!portal && (
+            <nav className="tabbar" aria-label="Main navigation">
+              {nav.slice(0, 5).map((t) => (
+                <Link
+                  key={t.href}
+                  href={t.href}
+                  aria-current={isCurrent(t.href) ? "page" : undefined}
+                  className={isCurrent(t.href) ? "active" : ""}
+                >
+                  <t.icon size={22} />
+                  {t.short || t.label}
+                </Link>
+              ))}
+            </nav>
+          )}
         </div>
         {modal === "auth" && (
           <Dialog title="Your Chatbud account" close={() => setModal("")}>

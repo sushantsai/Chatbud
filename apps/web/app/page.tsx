@@ -71,36 +71,37 @@ export default function Home() {
           <ArrowRight size={18} />
         </Link>
       )}
-      {areas
-        .filter((a) => features[a.id] !== "off")
-        .map((area) => (
-          <section className="area-band" data-area={area.id} key={area.id}>
-            <header>
-              <h2>{area.name}</h2>
-              <p>{area.line}</p>
-              {features[area.id] === "soon" && (
-                <span className="soon-badge">Coming soon</span>
-              )}
-            </header>
-            <div className="need-grid">
+      <div className="area-tiles">
+        {areas
+          .filter((a) => features[a.id] !== "off")
+          .map((area) => (
+            <section className="area-tile" data-area={area.id} key={area.id}>
+              <header>
+                <h2>{area.name}</h2>
+                <p>{area.line}</p>
+                {features[area.id] === "soon" && (
+                  <span className="soon-badge">Coming soon</span>
+                )}
+              </header>
               {needs
                 .filter((n) => n.area === area.id)
                 .map((n) => (
                   <Link
-                    className="need-card"
+                    className="need-row"
                     href={`/need/${n.slug}`}
                     key={n.slug}
                   >
-                    <span className="need-icon">
-                      <NeedIcon slug={n.slug} />
+                    <NeedIcon slug={n.slug} size={22} />
+                    <span>
+                      <strong>{n.title}</strong>
+                      <small>{n.summary}</small>
                     </span>
-                    <strong>{n.title}</strong>
-                    <span>{n.summary}</span>
+                    <ArrowRight size={18} />
                   </Link>
                 ))}
-            </div>
-          </section>
-        ))}
+            </section>
+          ))}
+      </div>
       <div className="quick-links">
         <Link href="/professionals">
           <Users size={20} />
