@@ -29,6 +29,7 @@ import {
   Umbrella,
   UserRound,
   Users,
+  Wallet,
   X,
   LifeBuoy,
   Package,
@@ -121,6 +122,11 @@ const headings: Record<string, [string, string, string]> = {
     "Booking oversight",
     "Follow requests through to confirmation, and step in when needed.",
   ],
+  "/admin/payments": [
+    "CHATBUD TEAM",
+    "Payments",
+    "Refunds to send, cash to record and money received.",
+  ],
   "/admin/catalogue": [
     "CHATBUD TEAM",
     "Catalogue",
@@ -196,6 +202,12 @@ const portals: Record<
         href: "/admin/bookings",
         label: "Bookings",
         icon: CalendarDays,
+        area: "support",
+      },
+      {
+        href: "/admin/payments",
+        label: "Payments",
+        icon: Wallet,
         area: "support",
       },
       {

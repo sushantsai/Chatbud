@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "./app";
+import { PayStep } from "./pay";
 import { nepalTime } from "./ui";
 const nepalDay = (date: Date) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kathmandu" }).format(date);
@@ -22,7 +23,9 @@ export function BookingForm({
   const [day, setDay] = useState(nepalDay(days[0])),
     [slots, setSlots] = useState<string[] | null>(null),
     [slot, setSlot] = useState(""),
-    [failed, setFailed] = useState("");
+    [failed, setFailed] = useState(""),
+    // Set once the time is held; the client then chooses how to pay.
+    [requested, setRequested] = useState("");
   useEffect(() => {
     let active = true;
     setSlots(null);
@@ -42,6 +45,23 @@ export function BookingForm({
       active = false;
     };
   }, [day, provider.serviceId]);
+  if (requested)
+    return (
+      <>
+        <p className="form-note held">
+          {nepalTime(slot)} NPT is held for you. Pay to send your request.
+        </p>
+        <PayStep
+          appointmentId={requested}
+          amount={provider.price}
+          provider={provider.name}
+          done={() => {
+            close();
+            router.push("/appointments");
+          }}
+        />
+      </>
+    );
   return (
     <form
       className="booking"
@@ -49,17 +69,19 @@ export function BookingForm({
         e.preventDefault();
         if (!slot) return setFailed("Choose a time to continue.");
         run(async () => {
-          await api("appointments", "POST", {
+          const held = await api("appointments", "POST", {
             serviceId: provider.serviceId,
             startsAt: slot,
             idempotencyKey: crypto.randomUUID(),
           });
-          setNotice(
-            `Request sent to ${provider.name}. You will see it confirmed under Appointments.`,
-          );
-          close();
           setDashboard(await api("me"));
-          router.push("/appointments");
+          // Free services need no payment step.
+          if (!provider.price) {
+            setNotice(`Request sent to ${provider.name}.`);
+            close();
+            return router.push("/appointments");
+          }
+          setRequested(held.id);
         });
       }}
     >
@@ -124,8 +146,8 @@ export function BookingForm({
         )}
       </fieldset>
       <p className="form-note">
-        No payment is taken now. {provider.name} confirms your request and
-        shares a meeting link; unanswered requests lapse after 24 hours.
+        Next you choose how to pay. {provider.name} then confirms your request
+        and shares a meeting link.
       </p>
       {(failed || error) && slots && slots.length > 0 && (
         <p role="alert" className="form-error">
@@ -134,7 +156,7 @@ export function BookingForm({
       )}
       {token ? (
         <button className="button full" disabled={busy || !slot}>
-          {busy ? "Sending request…" : "Request appointment"}
+          {busy ? "Holding your time…" : "Continue to payment"}
         </button>
       ) : (
         <button type="button" className="button full" onClick={openAuth}>

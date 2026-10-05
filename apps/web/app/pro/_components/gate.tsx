@@ -22,13 +22,32 @@ export function ProGate({ children }: { children: React.ReactNode }) {
   const [workspace, setWorkspace] = useState<any>(null),
     [failed, setFailed] = useState(false);
   const live = mode === "live";
-  const reload = async () => setWorkspace(await api("provider/workspace"));
+  // Each appointment carries its payment state, so unpaid requests can be held back.
+  const load = async () => {
+    const [data, pay] = await Promise.all([
+      api("provider/workspace"),
+      api("pay/status").catch(() => ({ appointments: [] })),
+    ]);
+    const paid = Object.fromEntries(
+      pay.appointments.map((a: any) => [a.id, a.paymentStatus]),
+    );
+    return data.appointments
+      ? {
+          ...data,
+          appointments: data.appointments.map((a: any) => ({
+            ...a,
+            paymentStatus: paid[a.id],
+          })),
+        }
+      : data;
+  };
+  const reload = async () => setWorkspace(await load());
   // Reloads whenever the application status changes, including right after applying.
   const applied = dashboard.providerApplication?.status;
   useEffect(() => {
     if (!live || !token) return;
     let active = true;
-    api("provider/workspace")
+    load()
       .then((data) => {
         if (active) setWorkspace(data);
       })

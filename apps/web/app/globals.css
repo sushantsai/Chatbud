@@ -3318,3 +3318,75 @@ main[data-area] .heading-mark {
   background: white;
   font-size: 13px;
 }
+
+/* Payments */
+.pay-step fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 14px;
+}
+.pay-step legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.pay-amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.pay-amount span {
+  color: var(--muted);
+  font-size: 14px;
+}
+.pay-amount strong {
+  font-size: 24px;
+  letter-spacing: -0.5px;
+}
+.choice.method {
+  display: flex;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.choice.method > span {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+}
+.choice.method small {
+  display: block;
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 13px;
+}
+.choice.method.unavailable {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.test-mode {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fff5e0;
+  color: #7d5300;
+  font-size: 14px;
+  font-weight: 600;
+}
+.form-note.held {
+  margin-bottom: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.pay-result.succeeded > svg,
+.pay-result.duplicate > svg {
+  color: #17683a;
+}
+.pay-result.failed > svg,
+.pay-result.error > svg {
+  color: #b3261e;
+}
