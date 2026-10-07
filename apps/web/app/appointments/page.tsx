@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Video } from "lucide-react";
 import { useApp } from "../_components/app";
+import { PayStep, paymentLabels, usePayStatuses } from "../_components/pay";
 import {
+  Dialog,
   SignInPrompt,
   appointmentStatus,
   money,
@@ -31,6 +33,8 @@ export default function Appointments() {
   } = useApp();
   const [mine, setMine] = useState<any[] | null>(null);
   const live = mode === "live";
+  const { statuses, reload: reloadStatuses } = usePayStatuses(live && !!token);
+  const [paying, setPaying] = useState<any>(null);
   useEffect(() => {
     if (!live || !token) return;
     let active = true;
@@ -86,6 +90,10 @@ export default function Appointments() {
               <strong>{a.provider}</strong>
               <p>
                 {a.service} · {nepalTime(a.startsAt)} NPT · {money(a.price)}
+                {statuses[a.id] &&
+                  a.price > 0 &&
+                  !(statuses[a.id] === "UNPAID" && a.status !== "HELD") &&
+                  ` · ${paymentLabels[statuses[a.id]]}`}
               </p>
               {a.meetingUrl && (
                 <p className="meeting-link">
@@ -101,9 +109,16 @@ export default function Appointments() {
               )}
             </div>
             <span className={`status status-${a.status.toLowerCase()}`}>
-              {appointmentStatus[a.status] || a.status.replaceAll("_", " ")}
+              {(a.status === "HELD" && statuses[a.id] === "UNPAID"
+                ? "Awaiting payment"
+                : appointmentStatus[a.status]) || a.status.replaceAll("_", " ")}
             </span>
             <div className="request-actions wrap">
+              {live && a.status === "HELD" && statuses[a.id] === "UNPAID" && (
+                <button className="button small" onClick={() => setPaying(a)}>
+                  Pay now
+                </button>
+              )}
               {a.meetingUrl && (
                 <a
                   className="button small"
@@ -122,6 +137,7 @@ export default function Appointments() {
                     run(async () => {
                       await api("appointments/cancel", "POST", { id: a.id });
                       setMine((await api("appointments")).appointments);
+                      await reloadStatuses();
                       setNotice("Appointment cancelled.");
                     })
                   }
@@ -159,6 +175,22 @@ export default function Appointments() {
               )}
           </div>
         ))
+      )}
+      {paying && (
+        <Dialog
+          title={`Pay for your session with ${paying.provider}`}
+          close={() => setPaying(null)}
+        >
+          <PayStep
+            appointmentId={paying.id}
+            amount={paying.price}
+            provider={paying.provider}
+            done={() => {
+              setPaying(null);
+              reloadStatuses();
+            }}
+          />
+        </Dialog>
       )}
     </section>
   );

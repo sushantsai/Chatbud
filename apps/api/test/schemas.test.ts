@@ -20,6 +20,9 @@ import {
   teamActions,
   wellbeingInput,
   researchActions,
+  payStart,
+  payTeamActions,
+  payVerify,
 } from "../src/schemas";
 const id = "7b0f7c0e-6a4e-4a53-9f0e-0c2f6a1d9b11";
 const accepts = (
@@ -436,4 +439,38 @@ test("research requests as the research portal sends them", () => {
     id,
     status: "CONTACTED",
   });
+});
+
+test("payment requests as the site sends them", () => {
+  accepts(payStart, {
+    appointmentId: id,
+    gateway: "ESEWA",
+    idempotencyKey: id,
+  });
+  accepts(payStart, {
+    appointmentId: id,
+    gateway: "LATER",
+    idempotencyKey: id,
+  });
+  rejects(payStart, {
+    appointmentId: id,
+    gateway: "FONEPAY",
+    idempotencyKey: id,
+  });
+  rejects(payStart, {
+    appointmentId: id,
+    gateway: "MANUAL",
+    idempotencyKey: id,
+  });
+  accepts(payVerify, { paymentId: id });
+  accepts(payTeamActions.refund_decide, {
+    refundId: id,
+    decision: "REJECTED",
+    reference: "",
+  });
+  accepts(payTeamActions.mark_paid, {
+    appointmentId: id,
+    reference: "Receipt 41",
+  });
+  rejects(payTeamActions.mark_paid, { appointmentId: id, reference: "" });
 });

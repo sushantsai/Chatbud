@@ -46,6 +46,7 @@ BEGIN
  INSERT INTO care.service(provider_id,profession_code,title,duration_minutes,price_minor,active) VALUES(pro,'counselor','Test session',50,100000,true) RETURNING id INTO svc;
  INSERT INTO care.appointment(client_id,provider_id,service_id,status,starts_at,ends_at,reserved_start_at,reserved_end_at,hold_expires_at,price_minor,commission_bps,policy_snapshot,service_snapshot)
  VALUES(client,pro,svc,'HELD',t,t+interval '50 minutes',t,t+interval '50 minutes',now()+interval '1 day',100000,0,'{}','{"title":"Test session"}') RETURNING id INTO appt;
+ UPDATE care.appointment SET payment_status='PAY_LATER',hold_expires_at=now()+interval '1 day' WHERE id=appt;
  failed := false;
  BEGIN PERFORM public.chatbud_ops('bookings_list',cataloguer); EXCEPTION WHEN insufficient_privilege THEN failed := true; END;
  IF NOT failed THEN RAISE EXCEPTION 'Catalogue role read bookings'; END IF;

@@ -493,3 +493,24 @@ export const researchActions = {
       .strict(),
   ]),
 };
+
+// Payments.
+export const payStart = z
+  .object({
+    appointmentId: uuid,
+    gateway: z.enum(["KHALTI", "ESEWA", "LATER"]),
+    idempotencyKey: uuid,
+  })
+  .strict();
+export const payVerify = z.object({ paymentId: uuid }).strict();
+export const payTeamActions = {
+  team_overview: none,
+  refund_decide: z
+    .object({
+      refundId: uuid,
+      decision: z.enum(["SENT", "REJECTED"]),
+      reference: text(80, 0),
+    })
+    .strict(),
+  mark_paid: z.object({ appointmentId: uuid, reference: text(80, 3) }).strict(),
+};
