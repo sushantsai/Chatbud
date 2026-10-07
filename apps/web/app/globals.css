@@ -3390,3 +3390,34 @@ main[data-area] .heading-mark {
 .pay-result.error > svg {
   color: #b3261e;
 }
+
+/* Checkout and orders */
+.checkout .pay-step {
+  margin-top: 12px;
+}
+.order-summary .cart-total {
+  padding: 6px 0;
+  border: 0;
+  font-size: 15px;
+}
+.order-summary .cart-total.line {
+  color: var(--muted);
+}
+.order-summary .cart-total.grand {
+  margin: 8px 0 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 18px;
+}
+.order-summary .promo {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 12px 0;
+}
+.order-summary .promo .field {
+  flex: 1;
+}
+.checkout-pay {
+  max-width: 520px;
+}

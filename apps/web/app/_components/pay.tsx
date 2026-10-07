@@ -59,18 +59,21 @@ function postForm(url: string, fields: Record<string, string>) {
   form.submit();
 }
 
-// Choose how to pay for one requested appointment.
+// Choose how to pay for one requested appointment or one store order.
 export function PayStep({
   appointmentId,
+  orderId,
   amount,
   provider,
   done,
 }: {
-  appointmentId: string;
+  appointmentId?: string;
+  orderId?: string;
   amount: number;
-  provider: string;
+  // The professional's name, for consultations.
+  provider?: string;
   // Called when no redirect is needed: the client chose to pay later.
-  done: () => void;
+  done?: () => void;
 }) {
   const { api, run, busy, error, setNotice } = useApp();
   const [methods, setMethods] = useState<any[] | null>(null),
@@ -83,8 +86,12 @@ export function PayStep({
     api("pay/methods")
       .then((data) => {
         if (!active) return;
-        setMethods(data.methods);
-        setMethod(data.methods.find((m: any) => m.available)?.id || "");
+        // Orders are paid online here; cash on delivery is chosen at checkout.
+        const offered = data.methods.filter(
+          (m: any) => !orderId || m.id !== "LATER",
+        );
+        setMethods(offered);
+        setMethod(offered.find((m: any) => m.available)?.id || "");
       })
       .catch(() => active && setMethods([]));
     return () => {
@@ -99,7 +106,7 @@ export function PayStep({
         e.preventDefault();
         run(async () => {
           const started = await api("pay/start", "POST", {
-            appointmentId,
+            ...(orderId ? { orderId } : { appointmentId }),
             gateway: method,
             idempotencyKey: key,
           });
@@ -107,7 +114,7 @@ export function PayStep({
             setNotice(
               `Request sent to ${provider}. Please pay Chatbud before your session.`,
             );
-            return done();
+            return done?.();
           }
           setLeaving(true);
           if (started.redirect) window.location.assign(started.redirect);
@@ -153,9 +160,9 @@ export function PayStep({
         </p>
       )}
       <p className="form-note">
-        Your time is held for 30 minutes while you pay. {provider} then has 24
-        hours to confirm. If they cannot, or you cancel at least 24 hours before
-        the session, you are refunded in full.
+        {orderId
+          ? "Your items are held for 30 minutes while you pay. You can cancel for a full refund until the order is dispatched."
+          : `Your time is held for 30 minutes while you pay. ${provider} then has 24 hours to confirm. If they cannot, or you cancel at least 24 hours before the session, you are refunded in full.`}
       </p>
       {error && (
         <p role="alert" className="form-error">

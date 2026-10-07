@@ -228,7 +228,7 @@ export default function MyHealth() {
       <section className="panel">
         <div className="panel-heading">
           <h2>Purchases</h2>
-          <Link href="/store">Visit the store</Link>
+          <Link href="/orders">See your orders</Link>
         </div>
         {dashboard.orders.length === 0 ? (
           <p className="empty-inline">Your product orders will appear here.</p>
