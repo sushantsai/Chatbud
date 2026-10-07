@@ -4373,3 +4373,50 @@ dialog :is(input, select, textarea) {
 .booking-row p {
   font-size: 15px;
 }
+
+/* Google sign-in and calendar */
+.button.google {
+  gap: 10px;
+  background: white;
+  color: var(--ink);
+  border-color: #c9d3dc;
+  box-shadow: none;
+}
+.button.google:hover:not(:disabled) {
+  background: var(--tint);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.plain-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 16px;
+  padding: 0;
+  list-style: none;
+  font-size: 16px;
+}
+.plain-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.plain-list svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--brand);
+}
