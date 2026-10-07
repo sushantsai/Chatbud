@@ -8,11 +8,12 @@ export const teamRoleLabels: Record<string, string> = {
   SECURITY_ADMIN: "Administrator",
 };
 export type TeamArea =
-  "dashboard" | "applications" | "support" | "catalogue" | "team";
+  "dashboard" | "applications" | "support" | "orders" | "catalogue" | "team";
 const areaRoles: Record<TeamArea, string[]> = {
   dashboard: Object.keys(teamRoleLabels),
   applications: ["VERIFICATION", "CLINICAL_REVIEW"],
   support: ["SUPPORT", "SECURITY_ADMIN"],
+  orders: ["SUPPORT", "CATALOG", "SECURITY_ADMIN"],
   catalogue: ["CATALOG", "SECURITY_ADMIN"],
   team: ["SECURITY_ADMIN"],
 };

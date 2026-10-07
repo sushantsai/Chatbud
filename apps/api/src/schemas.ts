@@ -493,3 +493,93 @@ export const researchActions = {
       .strict(),
   ]),
 };
+
+// Payments.
+// A payment is for one consultation or one store order. Orders cannot be paid later; cash on delivery is chosen at checkout.
+export const payStart = z.union([
+  z
+    .object({
+      appointmentId: uuid,
+      gateway: z.enum(["KHALTI", "ESEWA", "LATER"]),
+      idempotencyKey: uuid,
+    })
+    .strict(),
+  z
+    .object({
+      orderId: uuid,
+      gateway: z.enum(["KHALTI", "ESEWA"]),
+      idempotencyKey: uuid,
+    })
+    .strict(),
+]);
+export const payVerify = z.object({ paymentId: uuid }).strict();
+export const payTeamActions = {
+  team_overview: none,
+  refund_decide: z
+    .object({
+      refundId: uuid,
+      decision: z.enum(["SENT", "REJECTED"]),
+      reference: text(80, 0),
+    })
+    .strict(),
+  mark_paid: z.object({ appointmentId: uuid, reference: text(80, 3) }).strict(),
+};
+
+// Store checkout and order handling.
+const bag = z
+  .array(
+    z
+      .object({ skuId: uuid, quantity: z.number().int().min(1).max(10) })
+      .strict(),
+  )
+  .min(1)
+  .max(30)
+  .refine((items) => new Set(items.map((i) => i.skuId)).size === items.length, {
+    message: "Each product can appear once in the bag.",
+  });
+const promo = z
+  .string()
+  .trim()
+  .max(20)
+  .regex(/^[A-Za-z0-9]*$/);
+export const shopActions = {
+  quote: z.object({ items: bag, promoCode: promo }).strict(),
+  order_create: z
+    .object({
+      items: bag,
+      promoCode: promo,
+      delivery: z
+        .object({
+          recipient: text(120, 2),
+          phone: z
+            .string()
+            .trim()
+            .regex(/^[0-9+ -]{7,30}$/),
+          address: text(300, 5),
+          city: text(80, 2),
+          district: text(80, 2),
+          note: text(300, 0),
+        })
+        .strict(),
+      method: z.enum(["ONLINE", "COD"]),
+      idempotencyKey: uuid,
+    })
+    .strict(),
+  orders_mine: none,
+  order_cancel: z.object({ id: uuid }).strict(),
+};
+export const shopTeamActions = {
+  team_orders: none,
+  order_dispatch: z
+    .object({ id: uuid, courier: text(80, 2), tracking: text(80, 0) })
+    .strict(),
+  order_deliver: z.object({ id: uuid, cashReference: text(80, 0) }).strict(),
+  order_team_cancel: z.object({ id: uuid, reason: text(300, 10) }).strict(),
+  order_refund_decide: z
+    .object({
+      refundId: uuid,
+      decision: z.enum(["SENT", "REJECTED"]),
+      reference: text(80, 0),
+    })
+    .strict(),
+};

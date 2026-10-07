@@ -28,6 +28,7 @@ import {
   Umbrella,
   UserRound,
   Users,
+  Wallet,
   X,
   LifeBuoy,
   Package,
@@ -137,6 +138,22 @@ const headings: Record<string, [string, string, string]> = {
     "Booking oversight",
     "Follow requests through to confirmation, and step in when needed.",
   ],
+  "/admin/payments": [
+    "CHATBUD TEAM",
+    "Payments",
+    "Refunds to send, cash to record and money received.",
+  ],
+  "/admin/orders": [
+    "CHATBUD TEAM",
+    "Store orders",
+    "Pack, dispatch and deliver orders, and send order refunds.",
+  ],
+  "/checkout": ["CHATBUD STORE", "Checkout", "Delivery details, then payment."],
+  "/orders": [
+    "CHATBUD STORE",
+    "Your orders",
+    "Follow each order from payment to your door.",
+  ],
   "/admin/catalogue": [
     "CHATBUD TEAM",
     "Catalogue",
@@ -213,6 +230,18 @@ const portals: Record<
         label: "Bookings",
         icon: CalendarDays,
         area: "support",
+      },
+      {
+        href: "/admin/payments",
+        label: "Payments",
+        icon: Wallet,
+        area: "support",
+      },
+      {
+        href: "/admin/orders",
+        label: "Orders",
+        icon: Package,
+        area: "orders",
       },
       {
         href: "/admin/catalogue",
@@ -880,12 +909,29 @@ function Workspace({
                   <span>Subtotal</span>
                   <strong>{money(total)}</strong>
                 </div>
-                {mode === "live" && <PromoCode total={total} key={total} />}
-                <p className="form-note">
-                  {mode === "demo"
-                    ? "Preview stock is reserved for 10 minutes. No payment is collected and no goods are dispatched."
-                    : "Live checkout opens after product and payment onboarding."}
-                </p>
+                {mode === "demo" ? (
+                  <p className="form-note">
+                    Preview stock is reserved for 10 minutes. No payment is
+                    collected and no goods are dispatched.
+                  </p>
+                ) : (
+                  <>
+                    <p className="form-note">
+                      Delivery is NPR 100, free from NPR 2,000. You choose
+                      delivery and payment next.
+                    </p>
+                    <button
+                      className="button full"
+                      onClick={() => {
+                        setCartOpen(false);
+                        if (token) router.push("/checkout");
+                        else openAuth();
+                      }}
+                    >
+                      {token ? "Checkout" : "Sign in to check out"}
+                    </button>
+                  </>
+                )}
                 {mode === "demo" && (
                   <button
                     className="button full"
@@ -924,69 +970,5 @@ function Workspace({
         )}
       </div>
     </AppContext.Provider>
-  );
-}
-
-// Checks a promo code against the current bag total. Remounted whenever the total changes.
-function PromoCode({ total }: { total: number }) {
-  const { api } = useApp();
-  const [code, setCode] = useState(""),
-    [result, setResult] = useState<any>(null),
-    [checking, setChecking] = useState(false);
-  return (
-    <div className="promo">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          setChecking(true);
-          api("store/promo", "POST", { code: code.trim(), subtotal: total })
-            .then(setResult)
-            .catch(() =>
-              setResult({
-                valid: false,
-                message: "This code could not be checked.",
-              }),
-            )
-            .finally(() => setChecking(false));
-        }}
-      >
-        <div className="field">
-          <label htmlFor="promo-entry">Promo code</label>
-          <input
-            id="promo-entry"
-            value={code}
-            maxLength={20}
-            autoComplete="off"
-            onChange={(e) => {
-              setCode(e.target.value.toUpperCase());
-              setResult(null);
-            }}
-          />
-        </div>
-        <button
-          className="button secondary small"
-          disabled={checking || code.trim().length < 4}
-        >
-          {checking ? "Checking…" : "Apply"}
-        </button>
-      </form>
-      {result && !result.valid && (
-        <p className="field-error" role="alert">
-          {result.message}
-        </p>
-      )}
-      {result?.valid && (
-        <>
-          <div className="cart-total discount">
-            <span>{result.code}</span>
-            <strong>− {money(result.discount)}</strong>
-          </div>
-          <div className="cart-total">
-            <span>Total</span>
-            <strong>{money(total - result.discount)}</strong>
-          </div>
-        </>
-      )}
-    </div>
   );
 }

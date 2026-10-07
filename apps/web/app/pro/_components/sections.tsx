@@ -39,8 +39,11 @@ function useSection() {
     });
   return { ...app, workspace, reload, act };
 }
+// A request reaches the professional once it is paid or the client chose to pay later.
 export const pendingRequests = (workspace: any) =>
-  workspace.appointments.filter((a: any) => a.status === "HELD");
+  workspace.appointments.filter(
+    (a: any) => a.status === "HELD" && a.paymentStatus !== "UNPAID",
+  );
 export const confirmedAppointments = (workspace: any) =>
   workspace.appointments.filter((a: any) => a.status === "CONFIRMED");
 export const isBookable = (workspace: any) =>
@@ -160,6 +163,8 @@ export function Requests() {
                 <strong>{a.client}</strong>
                 <p>
                   {a.service} · {nepalTime(a.startsAt)} NPT
+                  {a.paymentStatus === "PAID" && " · Paid"}
+                  {a.paymentStatus === "PAY_LATER" && " · Client pays later"}
                 </p>
                 <Proposed a={a} />
               </div>

@@ -92,6 +92,12 @@ BEGIN
  BEGIN PERFORM public.chatbud_care('appointment_request',other,jsonb_build_object('serviceId',service_id,'startsAt',slot,'idempotencyKey',gen_random_uuid()));
  EXCEPTION WHEN raise_exception THEN failed := true; END;
  IF NOT failed THEN RAISE EXCEPTION 'Two clients requested the same time'; END IF;
+ -- An unpaid request cannot be confirmed; choosing to pay later releases it to the professional.
+ failed := false;
+ BEGIN PERFORM public.chatbud_care('provider_appointment_decide',applicant,jsonb_build_object('id',appt,'decision','CONFIRM','meetingUrl','https://meet.example.invalid/x'));
+ EXCEPTION WHEN raise_exception THEN failed := true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'An unpaid request was confirmed'; END IF;
+ PERFORM public.chatbud_pay('start',client,jsonb_build_object('appointmentId',appt,'gateway','LATER'));
  IF jsonb_array_length(public.chatbud_care('slots',NULL,jsonb_build_object('serviceId',service_id,'date',day))->'slots')<>2 THEN
   RAISE EXCEPTION 'Requested time still offered';
  END IF;

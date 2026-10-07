@@ -4082,6 +4082,110 @@ dialog :is(input, select, textarea) {
   padding: 3px 11px;
   font-size: 13px;
 }
+
+/* Payments */
+.pay-step fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 14px;
+}
+.pay-step legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.pay-amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.pay-amount span {
+  color: var(--muted);
+  font-size: 14px;
+}
+.pay-amount strong {
+  font-size: 24px;
+  letter-spacing: -0.5px;
+}
+.choice.method {
+  display: flex;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.choice.method > span {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+}
+.choice.method small {
+  display: block;
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 13px;
+}
+.choice.method.unavailable {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.test-mode {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fff5e0;
+  color: #7d5300;
+  font-size: 14px;
+  font-weight: 600;
+}
+.form-note.held {
+  margin-bottom: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.pay-result.succeeded > svg,
+.pay-result.duplicate > svg {
+  color: #17683a;
+}
+.pay-result.failed > svg,
+.pay-result.error > svg {
+  color: #b3261e;
+}
+
+/* Checkout and orders */
+.checkout .pay-step {
+  margin-top: 12px;
+}
+.order-summary .cart-total {
+  padding: 6px 0;
+  border: 0;
+  font-size: 15px;
+}
+.order-summary .cart-total.line {
+  color: var(--muted);
+}
+.order-summary .cart-total.grand {
+  margin: 8px 0 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 18px;
+}
+.order-summary .promo {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 12px 0;
+}
+.order-summary .promo .field {
+  flex: 1;
+}
+.checkout-pay {
+  max-width: 520px;
+}
+
 .week span {
   width: 32px;
   height: 32px;
@@ -4244,4 +4348,28 @@ dialog :is(input, select, textarea) {
 }
 .profession {
   color: var(--brand-dark);
+}
+
+/* Payments, checkout and orders in the clinical look */
+.choice.method > span {
+  border-radius: 10px;
+}
+.pay-amount strong {
+  font-size: 28px;
+}
+.test-mode {
+  border-radius: 10px;
+  font-size: 15px;
+}
+.order-summary .cart-total {
+  font-size: 16px;
+}
+.order-summary .cart-total.grand {
+  font-size: 20px;
+}
+.booking-row strong {
+  font-size: 17px;
+}
+.booking-row p {
+  font-size: 15px;
 }

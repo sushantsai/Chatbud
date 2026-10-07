@@ -32,10 +32,15 @@ import {
   goalCheckin,
   goalInput,
   shareInput,
+  shopActions,
+  shopTeamActions,
   wellbeingInput,
   planInput,
   profileInput,
   opsRequest,
+  payStart,
+  payTeamActions,
+  payVerify,
   promoCheck,
   researchActions,
   supportActions,
@@ -48,6 +53,14 @@ import {
 import helmet from "helmet";
 import { createMeetingLink, videoProvider } from "./meeting";
 import { instruments, score } from "./instruments";
+import {
+  esewaForm,
+  esewaStatus,
+  khaltiStart,
+  khaltiStatus,
+  methods,
+  type Outcome,
+} from "./payments";
 import { progress, type GoalDays } from "./progress";
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
@@ -823,6 +836,167 @@ class HealthController {
   }
 }
 @Controller()
+class PayController {
+  constructor(@Inject(DataService) private readonly data: DataService) {}
+  private pay(action: string, actor: string, data: any = {}) {
+    return this.data.rpc(action, actor, data, "chatbud_pay");
+  }
+  @Get("pay/methods") methods() {
+    return { methods: methods() };
+  }
+  @Get("pay/status") async status(
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.pay("statuses", await this.data.actor(auth));
+  }
+  // Store orders keep their payments in the shop gateway; consultations in the pay gateway.
+  private shop(action: string, actor: string, data: any = {}) {
+    return this.data.rpc(action, actor, data, "chatbud_shop");
+  }
+  @Post("pay/start") async start(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const input = parse(payStart, body);
+    const method = methods().find((m) => m.id === input.gateway);
+    if (!method?.available)
+      throw new HttpException("This payment method is not available.", 400);
+    const actor = await this.data.actor(auth);
+    const order = "orderId" in input;
+    const payment = order
+      ? await this.shop("pay_start", actor, input)
+      : await this.pay("start", actor, input);
+    if (payment.payLater) return payment;
+    if (input.gateway === "ESEWA")
+      return {
+        id: payment.id,
+        form: esewaForm(payment.id, payment.amountMinor),
+      };
+    try {
+      const started = await khaltiStart(payment);
+      const attach = { id: payment.id, reference: started.reference };
+      if (order) await this.shop("pay_attach", actor, attach);
+      else await this.pay("attach", actor, attach);
+      return { id: payment.id, redirect: started.url };
+    } catch (e) {
+      console.error("Khalti start failed:", (e as Error).message);
+      throw new HttpException(
+        "Khalti could not start the payment. Try again or choose another method.",
+        502,
+      );
+    }
+  }
+  // Asks the payment provider what happened, then records it. Safe to call repeatedly.
+  @Post("pay/verify") async verify(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const { paymentId } = parse(payVerify, body);
+    const actor = await this.data.actor(auth);
+    // The payment belongs to a consultation or, failing that, to an order.
+    let kind: "appointment" | "order" = "appointment";
+    let attempt = await this.pay("attempt", actor, { id: paymentId }).catch(
+      () => null,
+    );
+    if (!attempt) {
+      kind = "order";
+      attempt = await this.shop("pay_attempt", actor, { id: paymentId });
+    }
+    if (attempt.status === "SUCCEEDED") return { status: "SUCCEEDED", kind };
+    let result: Outcome;
+    try {
+      result =
+        attempt.gateway === "ESEWA"
+          ? await esewaStatus(attempt.id, attempt.amountMinor)
+          : attempt.gateway === "KHALTI" && attempt.reference
+            ? await khaltiStatus(attempt.reference, attempt.amountMinor)
+            : { outcome: "FAILED" };
+    } catch (e) {
+      console.error("Payment check failed:", (e as Error).message);
+      return { status: "PENDING", kind };
+    }
+    if (result.outcome === "PENDING") return { status: "PENDING", kind };
+    const settle = {
+      id: paymentId,
+      outcome: result.outcome,
+      reference: result.reference,
+    };
+    const settled =
+      kind === "order"
+        ? await this.shop("pay_settle", actor, settle)
+        : await this.pay("settle", actor, settle);
+    return { ...settled, kind };
+  }
+  // Refunds and cash payments. Roles are enforced inside the database gateway.
+  @Post("admin/pay") async team(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const { action, data } = parse(opsRequest, body);
+    const schema = Object.hasOwn(payTeamActions, action)
+      ? payTeamActions[action as keyof typeof payTeamActions]
+      : null;
+    if (!schema) throw new HttpException("Unknown action", 404);
+    return this.pay(
+      action,
+      await this.data.actor(auth),
+      parse(schema, data ?? {}),
+    );
+  }
+}
+@Controller()
+class ShopController {
+  constructor(@Inject(DataService) private readonly data: DataService) {}
+  private async run(
+    actions: Record<string, z.ZodTypeAny>,
+    body: unknown,
+    auth: string,
+  ) {
+    const { action, data } = parse(opsRequest, body);
+    const schema = Object.hasOwn(actions, action) ? actions[action] : null;
+    if (!schema) throw new HttpException("Unknown action", 404);
+    const input = parse(schema, data ?? {});
+    return this.data.rpc(
+      action,
+      await this.data.actor(auth),
+      input,
+      "chatbud_shop",
+    );
+  }
+  // Checkout and a customer's own orders.
+  @Post("shop") customer(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.run(shopActions, body, auth);
+  }
+  // Packing, dispatch, delivery and order refunds. Roles are enforced inside the database gateway.
+  @Post("admin/shop") team(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.run(shopTeamActions, body, auth);
+  }
+}
+@Controller()
 class OpsController {
   constructor(@Inject(DataService) private readonly data: DataService) {}
   // Runs one named action after validating its data against that action's schema.
@@ -920,7 +1094,14 @@ class OpsController {
   }
 }
 @Module({
-  controllers: [AppController, CareController, HealthController, OpsController],
+  controllers: [
+    AppController,
+    CareController,
+    HealthController,
+    OpsController,
+    PayController,
+    ShopController,
+  ],
   providers: [DataService],
 })
 class AppModule {}
