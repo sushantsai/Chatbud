@@ -11,6 +11,7 @@ export default function PayReturn() {
   const { id } = useParams<{ id: string }>();
   const { api, token, mode, openAuth } = useApp();
   const [status, setStatus] = useState("CHECKING");
+  const [kind, setKind] = useState("appointment");
   const [tries, setTries] = useState(0);
   useEffect(() => {
     if (mode !== "live" || !token) return;
@@ -20,6 +21,7 @@ export default function PayReturn() {
       .then((result) => {
         if (!active) return;
         setStatus(result.status);
+        if (result.kind) setKind(result.kind);
         // A payment still in progress is checked again, a few times.
         if (result.status === "PENDING" && tries < 5)
           timer = setTimeout(() => setTries(tries + 1), 4000);
@@ -36,37 +38,43 @@ export default function PayReturn() {
         Sign in again to see the result of your payment.
       </SignInPrompt>
     );
+  const order = kind === "order";
+  const where = order ? "Orders" : "Appointments";
   const view: Record<string, [any, string, string]> = {
     CHECKING: [Clock, "Checking your payment…", "This takes a few seconds."],
     SUCCEEDED: [
       CircleCheck,
       "Payment received",
-      "Your request has gone to the professional. They have 24 hours to confirm, and you will see it under Appointments.",
+      order
+        ? "Your order is confirmed and will be packed for delivery. You can follow it under Orders."
+        : "Your request has gone to the professional. They have 24 hours to confirm, and you will see it under Appointments.",
     ],
     PENDING: [
       Clock,
       "Your payment is still being processed",
-      "We will keep checking. You can also look under Appointments in a few minutes. You have not been charged twice.",
+      `We will keep checking. You can also look under ${where} in a few minutes. You have not been charged twice.`,
     ],
     FAILED: [
       CircleX,
       "The payment did not go through",
-      "No booking was paid for. You can try again from Appointments while your time is still held.",
+      `Nothing was paid for. You can try again from ${where} while your ${order ? "items are" : "time is"} still held.`,
     ],
     LAPSED: [
       Clock,
-      "Paid, but the time was no longer held",
-      "Your payment arrived after the 30-minute hold ended. It will be refunded in full, and you can book a new time.",
+      order
+        ? "Paid, but the items were no longer held"
+        : "Paid, but the time was no longer held",
+      `Your payment arrived after the 30-minute hold ended. It will be refunded in full, and you can ${order ? "order" : "book a new time"} again.`,
     ],
     DUPLICATE: [
       CircleCheck,
-      "This booking was already paid",
+      "This was already paid",
       "A second payment was received and will be returned to you by the Chatbud team.",
     ],
     ERROR: [
       CircleX,
       "We could not check your payment",
-      "Open Appointments to see whether it is marked paid. If money left your account and it is not, contact us through Help.",
+      `Open ${where} to see whether it is marked paid. If money left your account and it is not, contact us through Help.`,
     ],
   };
   const [Icon, title, detail] = view[status] || view.ERROR;
@@ -78,8 +86,8 @@ export default function PayReturn() {
       <Icon size={40} />
       <h2>{title}</h2>
       <p>{detail}</p>
-      <Link className="button" href="/appointments">
-        Go to appointments
+      <Link className="button" href={order ? "/orders" : "/appointments"}>
+        Go to {where.toLowerCase()}
       </Link>
     </section>
   );

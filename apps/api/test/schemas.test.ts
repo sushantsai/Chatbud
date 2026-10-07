@@ -23,6 +23,8 @@ import {
   payStart,
   payTeamActions,
   payVerify,
+  shopActions,
+  shopTeamActions,
 } from "../src/schemas";
 const id = "7b0f7c0e-6a4e-4a53-9f0e-0c2f6a1d9b11";
 const accepts = (
@@ -473,4 +475,44 @@ test("payment requests as the site sends them", () => {
     reference: "Receipt 41",
   });
   rejects(payTeamActions.mark_paid, { appointmentId: id, reference: "" });
+});
+
+test("store checkout requests as the site sends them", () => {
+  const items = [{ skuId: id, quantity: 2 }];
+  const delivery = {
+    recipient: "Synthetic Buyer",
+    phone: "9800000000",
+    address: "12 Test Marg",
+    city: "Kathmandu",
+    district: "Kathmandu",
+    note: "",
+  };
+  accepts(shopActions.quote, { items, promoCode: "" });
+  rejects(shopActions.quote, { items: [], promoCode: "" });
+  rejects(shopActions.quote, { items: [...items, ...items], promoCode: "" });
+  rejects(shopActions.quote, {
+    items: [{ skuId: id, quantity: 11 }],
+    promoCode: "",
+  });
+  const order = {
+    items,
+    promoCode: "SAVE10",
+    delivery,
+    method: "COD",
+    idempotencyKey: id,
+  };
+  accepts(shopActions.order_create, order);
+  rejects(shopActions.order_create, { ...order, method: "LATER" });
+  rejects(shopActions.order_create, {
+    ...order,
+    delivery: { ...delivery, phone: "call me" },
+  });
+  accepts(payStart, { orderId: id, gateway: "KHALTI", idempotencyKey: id });
+  rejects(payStart, { orderId: id, gateway: "LATER", idempotencyKey: id });
+  accepts(shopTeamActions.order_dispatch, {
+    id,
+    courier: "Upaya",
+    tracking: "",
+  });
+  rejects(shopTeamActions.order_team_cancel, { id, reason: "no" });
 });

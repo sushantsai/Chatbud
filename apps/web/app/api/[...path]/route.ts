@@ -63,6 +63,8 @@ async function proxy(
       "admin/document",
       "admin/ops",
       "support",
+      "shop",
+      "admin/shop",
       "pay/methods",
       "pay/status",
       "pay/start",
