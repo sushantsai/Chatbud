@@ -31,6 +31,7 @@ import {
   Wallet,
   X,
   LifeBuoy,
+  Video,
   Package,
 } from "lucide-react";
 import { features } from "../_lib/features";
@@ -169,6 +170,7 @@ const headings: Record<string, [string, string, string]> = {
     "Field research workspace",
     "Studies, consent, assessments and referrals.",
   ],
+  "/admin/integrations": ["CHATBUD TEAM", "Google connections", "Sign-in and online consultation setup."],
   "/help": [
     "HELP",
     "We are here to put things right.",
@@ -249,6 +251,7 @@ const portals: Record<
         icon: Package,
         area: "catalogue",
       },
+      { href: "/admin/integrations", label: "Google connections", icon: Video, area: "support" },
       { href: "/admin/team", label: "Team", icon: Users, area: "team" },
     ],
   },

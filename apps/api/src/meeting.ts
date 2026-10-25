@@ -71,6 +71,26 @@ async function googleMeetLink(request: Fetch): Promise<string> {
 const jitsiLink = () =>
   `https://meet.jit.si/chatbud-${randomBytes(12).toString("hex")}`;
 
+// A connection test must fail visibly instead of reporting a fallback as success.
+export async function testGoogleMeetConnection(request: Fetch = fetch) {
+  if (!googleMeetConfigured()) throw new Error("Google Meet is not configured");
+  cached = null;
+  return {
+    url: await googleMeetLink(request),
+    provider: "google_meet" as const,
+  };
+}
+
+// Resolve permission and existing state before making any external request.
+export async function appointmentMeetingLink(
+  authorize: () => Promise<{ meetingUrl: string | null }>,
+  provided?: string,
+  create: typeof createMeetingLink = createMeetingLink,
+): Promise<string> {
+  const appointment = await authorize();
+  return provided || appointment.meetingUrl || (await create()).url;
+}
+
 export async function createMeetingLink(
   request: Fetch = fetch,
 ): Promise<{ url: string; provider: "google_meet" | "jitsi" }> {

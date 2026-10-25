@@ -38,6 +38,8 @@ async function proxy(
   if (
     ![
       "health",
+      "integrations/google/status",
+      "integrations/google/test",
       "catalog",
       "me",
       "providers/applications",

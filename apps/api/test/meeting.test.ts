@@ -1,7 +1,12 @@
 // The meeting link must always come back, whichever provider is available.
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { createMeetingLink, videoProvider } from "../src/meeting";
+import {
+  appointmentMeetingLink,
+  createMeetingLink,
+  testGoogleMeetConnection,
+  videoProvider,
+} from "../src/meeting";
 const keys = [
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
@@ -78,4 +83,69 @@ test("a Google failure falls back so confirmation never fails", async () => {
     console.error = original;
   }
   assert.equal(errors.length, 3);
+});
+
+test("a Meet connection test verifies Google directly and never falls back", async () => {
+  await assert.rejects(testGoogleMeetConnection(), /not configured/);
+  connect();
+  let calls = 0;
+  const request = (async (url: string) => {
+    calls++;
+    return url.includes("oauth2")
+      ? reply(200, { access_token: "fresh-test-token", expires_in: 3600 })
+      : reply(200, { meetingUri: "https://meet.google.com/abc-defg-hij" });
+  }) as typeof fetch;
+  assert.equal(
+    (await testGoogleMeetConnection(request)).provider,
+    "google_meet",
+  );
+  assert.equal(
+    calls,
+    2,
+    "The test refreshes OAuth credentials before creating a room",
+  );
+  await assert.rejects(
+    testGoogleMeetConnection((async () => reply(403, {})) as typeof fetch),
+  );
+});
+
+test("appointment permission is checked before creating or returning a room", async () => {
+  let created = 0;
+  const create = async () => {
+    created++;
+    return {
+      url: "https://meet.google.com/abc-defg-hij",
+      provider: "google_meet" as const,
+    };
+  };
+  const denied = async (): Promise<{ meetingUrl: string | null }> => {
+    throw new Error("Access denied");
+  };
+  await assert.rejects(
+    appointmentMeetingLink(denied, undefined, create),
+    /Access denied/,
+  );
+  await assert.rejects(
+    appointmentMeetingLink(denied, "https://meet.google.com/custom", create),
+    /Access denied/,
+  );
+  assert.equal(created, 0);
+  assert.equal(
+    await appointmentMeetingLink(
+      async () => ({ meetingUrl: "https://meet.google.com/existing" }),
+      undefined,
+      create,
+    ),
+    "https://meet.google.com/existing",
+  );
+  assert.equal(created, 0, "Rescheduling reuses the existing room");
+  assert.equal(
+    await appointmentMeetingLink(
+      async () => ({ meetingUrl: null }),
+      undefined,
+      create,
+    ),
+    "https://meet.google.com/abc-defg-hij",
+  );
+  assert.equal(created, 1);
 });
