@@ -51,7 +51,12 @@ import {
   order,
 } from "./schemas";
 import helmet from "helmet";
-import { createMeetingLink, videoProvider } from "./meeting";
+import {
+  appointmentMeetingLink,
+  googleMeetConfigured,
+  testGoogleMeetConnection,
+  videoProvider,
+} from "./meeting";
 import { instruments, score } from "./instruments";
 import {
   esewaForm,
@@ -248,6 +253,12 @@ class DataService {
   health(action: string, actor: string, data: any = {}) {
     return this.rpc(action, actor, data, "chatbud_health");
   }
+  meeting(actor: string, id: string, intent: string, provided?: string) {
+    return appointmentMeetingLink(
+      () => this.rpc("appointment", actor, { id, intent }, "chatbud_meet"),
+      provided,
+    );
+  }
   // Signed-in practice and appointment features have no preview equivalent.
   liveOnly(mode: string | undefined, signed: string | undefined) {
     if (this.preview(mode, signed))
@@ -285,7 +296,9 @@ class DataService {
       throw new HttpException("A verified sign-in is required", 401);
     const profile = {
       email: data.user.email,
-      name: data.user.user_metadata?.display_name,
+      name:
+        data.user.user_metadata?.display_name ||
+        data.user.user_metadata?.full_name,
     };
     const stamp = JSON.stringify(profile);
     const synced = this.synced.get(data.user.id);
@@ -694,7 +707,12 @@ class CareController {
     const actor = await this.data.actor(auth);
     const meetingUrl =
       input.decision === "CONFIRM"
-        ? input.meetingUrl || (await createMeetingLink()).url
+        ? await this.data.meeting(
+            actor,
+            input.id,
+            "provider_confirm",
+            input.meetingUrl,
+          )
         : undefined;
     return this.data.care("provider_appointment_decide", actor, {
       ...input,
@@ -724,11 +742,18 @@ class CareController {
     this.data.liveOnly(mode, session);
     const input = parse(rescheduleResponse, body);
     const actor = await this.data.actor(auth);
-    // Accepting finalises the consultation, so it needs a link if it has none yet;
-    // the gateway keeps an existing link and ignores this one.
+    // Reuse an existing room and authorize the client before creating a new one.
     return this.data.care("appointment_reschedule_respond", actor, {
       ...input,
-      ...(input.accept ? { meetingUrl: (await createMeetingLink()).url } : {}),
+      ...(input.accept
+        ? {
+            meetingUrl: await this.data.meeting(
+              actor,
+              input.id,
+              "client_reschedule",
+            ),
+          }
+        : {}),
     });
   }
   @Post("admin/document") async evidence(
@@ -1010,8 +1035,13 @@ class OpsController {
     if (!schema) throw new HttpException("Unknown action", 404);
     const input = parse(schema, data ?? {});
     const actor = await this.data.actor(auth);
-    if (action === "booking_confirm" && !input.meetingUrl)
-      input.meetingUrl = (await createMeetingLink()).url;
+    if (action === "booking_confirm")
+      input.meetingUrl = await this.data.meeting(
+        actor,
+        input.id,
+        "team_confirm",
+        input.meetingUrl,
+      );
     return this.data.rpc(action, actor, input, "chatbud_ops");
   }
   @Get("store/offers") offers(
@@ -1093,6 +1123,52 @@ class OpsController {
     return this.run(teamActions, body, auth);
   }
 }
+@Controller("integrations/google")
+class GoogleIntegrationController {
+  constructor(@Inject(DataService) private readonly data: DataService) {}
+  private async authorize(
+    auth: string,
+    mode: string,
+    session: string,
+    action: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    await this.data.rpc(
+      action,
+      await this.data.actor(auth),
+      {},
+      "chatbud_meet",
+    );
+  }
+  @Get("status") async status(
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    await this.authorize(auth, mode, session, "status");
+    return {
+      configured: googleMeetConfigured(),
+      videoProvider: videoProvider(),
+    };
+  }
+  @Post("test") async test(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    parse(z.object({}).strict(), body);
+    await this.authorize(auth, mode, session, "test");
+    try {
+      return await testGoogleMeetConnection();
+    } catch {
+      throw new HttpException(
+        "Google Meet could not create a room. Check the connected Google account, Meet API access and OAuth permissions, then try again.",
+        503,
+      );
+    }
+  }
+}
 @Module({
   controllers: [
     AppController,
@@ -1101,6 +1177,7 @@ class OpsController {
     OpsController,
     PayController,
     ShopController,
+    GoogleIntegrationController,
   ],
   providers: [DataService],
 })

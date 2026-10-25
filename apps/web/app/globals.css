@@ -4373,3 +4373,5 @@ dialog :is(input, select, textarea) {
 .booking-row p {
   font-size: 15px;
 }
+
+.google-signin{display:flex;align-items:center;justify-content:center;gap:12px;background:white;color:var(--ink);border:1px solid var(--line);margin-bottom:20px}.google-signin:hover:not(:disabled){background:var(--bg);color:var(--ink)}.auth-divider{display:flex;align-items:center;gap:13px;color:var(--muted);font-size:12px;margin:18px 0 24px}.auth-divider:before,.auth-divider:after{content:"";height:1px;background:var(--line);flex:1}.oauth-result{max-width:650px;margin:30px auto}.oauth-result p{margin:18px 0;line-height:1.8}

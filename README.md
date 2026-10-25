@@ -5,13 +5,15 @@ Development foundation for Chatbud Nepal, a digital health and wellbeing platfor
 ## What works
 
 - Responsive care directory, nutrition filters, wellness shop, cart, care dashboard, practitioner application and reviewer workspaces.
-- Supabase email/password authentication and verified-user API authentication.
+- Supabase email/password authentication, a Google sign-in flow awaiting provider credentials, and verified-user API authentication.
 - Live approved catalog and practitioner applications persisted in Supabase. Reviewer reads require a designated review role.
 - Development preview with fictional data, signed browser sessions, appointment overlap checks, 10-minute holds, inventory reservations, idempotent requests, and application review actions.
 
 Live care works end to end without payment: practitioners apply with verification details and documents, reviewers approve, request information or reject, approved practitioners set services and weekly hours, and clients request appointments that the practitioner confirms. Confirming creates the meeting link automatically: a Google Meet space when `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REFRESH_TOKEN` are set on the API (scope `meetings.space.created`), otherwise a private Jitsi room; `/health` reports which as `videoProvider`. A practitioner can propose another time, which becomes final when the client accepts. My Health groups plans and goals by area of care (mental health, nutrition, fitness); a professional sees another area only while the client shares it, and each share records the consent wording. Payments, in-app video, shipping and fulfillment are not enabled. Care plans and applications are stored without application-level encryption; add it before holding real client records. Preview checkout collects no money and dispatches no products. Use fictional information in preview forms. The live catalog is empty until real professionals and products are onboarded.
 
 ## App structure
+
+Google sign-in setup and the team-only Meet connection test at `/admin/integrations` are documented in [GOOGLE_SETUP.md](GOOGLE_SETUP.md). Provider availability and configured Meet credentials do not establish a successful Google login or room creation; run the documented account checks after configuration. AI integration is paused.
 
 The client site has five tabs, each its own route: Home (`/`), Professionals (`/professionals`), Appointments (`/appointments`), Store (`/store`) and My Health (`/my-health`), plus `/protect`. Professionals have their own portal under `/pro` (dashboard, appointments, clients, services and hours, profile) with its own sign-in and application flow. The Chatbud team signs in at `/admin`: a dashboard, applications, grievances, bookings, catalogue (products, stock, offers, promo codes) and team roles, each opened by a separate role (verification, clinical review, support, catalogue, administrator). Clients and professionals raise concerns at `/help` and `/pro/help`. All three use the same account system; the server checks roles on every request. Shared session, catalog and bag state lives in `apps/web/app/_components/app.tsx`.
 
