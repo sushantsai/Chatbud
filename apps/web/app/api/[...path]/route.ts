@@ -38,6 +38,12 @@ async function proxy(
   if (
     ![
       "health",
+      "ai/status",
+      "ai/conversations",
+      "ai/conversation",
+      "ai/chat",
+      "ai/actions",
+      "ai/team",
       "catalog",
       "me",
       "providers/applications",
@@ -141,7 +147,7 @@ async function proxy(
         },
         body: req.method === "GET" ? undefined : await req.text(),
         cache: "no-store",
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(target === "ai/chat" ? 60000 : 15000),
       },
     );
     const result = new NextResponse(await response.text(), {

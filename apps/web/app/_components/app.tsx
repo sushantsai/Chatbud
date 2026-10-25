@@ -31,6 +31,7 @@ import {
   Wallet,
   X,
   LifeBuoy,
+  Bot,
   Package,
 } from "lucide-react";
 import { features } from "../_lib/features";
@@ -66,6 +67,7 @@ const tabs: Tab[] = [
   { href: "/store", label: "Store", icon: ShoppingBag },
   { href: "/my-health", label: "My Health", icon: HeartPulse },
   { href: "/help", label: "Help", icon: LifeBuoy },
+  { href: "/assistant", label: "AI assistant", icon: Bot },
 ];
 const headings: Record<string, [string, string, string]> = {
   "/": [
@@ -169,6 +171,21 @@ const headings: Record<string, [string, string, string]> = {
     "Field research workspace",
     "Studies, consent, assessments and referrals.",
   ],
+  "/assistant": [
+    "CHATBUD ASSIST",
+    "Support that stays with you.",
+    "Booking, tracking and a helping hand, in your language.",
+  ],
+  "/pro/assistant": [
+    "FOR PROFESSIONALS",
+    "Your practice assistant.",
+    "Scheduling and communication support within your professional account.",
+  ],
+  "/admin/ai-team": [
+    "CHATBUD TEAM",
+    "Your AI support team.",
+    "Specialists, conversations, channel connections and human handoffs.",
+  ],
   "/help": [
     "HELP",
     "We are here to put things right.",
@@ -202,6 +219,7 @@ const portals: Record<
       { href: "/pro/services", label: "Services & hours", icon: Stethoscope },
       { href: "/pro/profile", label: "Profile", icon: UserRound },
       { href: "/pro/help", label: "Help", icon: LifeBuoy },
+      { href: "/pro/assistant", label: "AI assistant", icon: Bot },
     ],
   },
   admin: {
@@ -248,6 +266,12 @@ const portals: Record<
         label: "Catalogue",
         icon: Package,
         area: "catalogue",
+      },
+      {
+        href: "/admin/ai-team",
+        label: "AI support team",
+        icon: Bot,
+        area: "support",
       },
       { href: "/admin/team", label: "Team", icon: Users, area: "team" },
     ],
@@ -409,8 +433,9 @@ function Workspace({
       if (!mounted.current || controller.signal.aborted)
         throw new DOMException("The workspace changed.", "AbortError");
       if (!r.ok)
-        throw new Error(
-          data.message || "Something went wrong. Please try again.",
+        throw Object.assign(
+          new Error(data.message || "Something went wrong. Please try again."),
+          { status: r.status, code: data.code },
         );
       return data;
     } finally {

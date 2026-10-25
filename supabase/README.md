@@ -23,3 +23,7 @@ No real professionals, products or clients are seeded. Profession reference rows
 `tests/gateway.sql` verifies authorization, practitioner application persistence, audit and reviewer access in a transaction, then rolls back its synthetic records. Apply migrations to a fresh development Supabase project in order; do not reapply the initial migration to this already provisioned project.
 
 CLI credentials are stored outside this repository. Never commit tokens, passwords or service-role keys.
+
+## AI support
+
+The `assist` schema adds private conversations, messages, runs, reviewed actions, unsent drafts and research briefs. The `ai_support_team`, `ai_action_integrity` and `ai_action_lock_order` migrations have been applied. `chatbud_assist` is a server-only gateway: active accounts can read their own conversations; staff views require support permissions. User-confirmed booking and cancellation actions reuse the existing care gateway and revalidate their quote/revision. See `tests/assistant.sql` and `../docs/ai-support-team.md`.
