@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import { AssistantService, assistantStatus } from "./assistant/service";
 import { config } from "dotenv";
 import {
   Controller,
@@ -1093,6 +1094,76 @@ class OpsController {
     return this.run(teamActions, body, auth);
   }
 }
+@Controller("ai")
+class AssistantController {
+  private assistant: AssistantService;
+  constructor(@Inject(DataService) private readonly data: DataService) {
+    this.assistant = new AssistantService(data);
+  }
+  @Get("status") status() {
+    return assistantStatus();
+  }
+  @Get("conversations") async list(
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.assistant.call("conversations", await this.data.actor(auth));
+  }
+  @Get("conversation") async conversation(
+    @Headers("authorization") auth: string,
+    @Query() query: any,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(query.mode, session);
+    const conversationId = parse(z.string().uuid(), query.conversationId);
+    return this.assistant.call("conversation", await this.data.actor(auth), {
+      conversationId,
+    });
+  }
+  @Post("conversations") async create(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.assistant.create(await this.data.actor(auth), body);
+  }
+  @Post("chat") async chat(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.assistant.turn(await this.data.actor(auth), body);
+  }
+  @Post("actions") async action(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return this.assistant.decide(await this.data.actor(auth), body);
+  }
+  @Get("team") async team(
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    return {
+      ...(await this.assistant.call(
+        "team_overview",
+        await this.data.actor(auth),
+      )),
+      ...assistantStatus(),
+    };
+  }
+}
 @Module({
   controllers: [
     AppController,
@@ -1101,6 +1172,7 @@ class OpsController {
     OpsController,
     PayController,
     ShopController,
+    AssistantController,
   ],
   providers: [DataService],
 })

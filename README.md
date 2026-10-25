@@ -60,3 +60,9 @@ Set the same `DEMO_SESSION_SECRET` on both projects so the web proxy can sign ea
 The in-memory traffic guards are per server instance. Shared edge rate limits, monitored secrets, account recovery/email redirects, operational review, payment webhooks and fulfillment workflows remain deployment work. Do not expose the development API as a production service.
 
 See `supabase/README.md` for migration details. No secrets or real client/provider/product records are seeded in this repository.
+
+## AI support team
+
+The new `/assistant` and `/pro/assistant` workspaces add multilingual AI support; `/admin/ai-team` shows specialists, channel readiness and handoffs. The runtime coordinates booking, tracking, communications, operations and lead-research specialists. Booking/cancellation actions require a separate confirmation, and confirmed handoffs create tickets in the existing support inbox. Browser dictation/read-aloud uses available browser voices.
+
+AI Gateway credentials are required before live conversations can start. WhatsApp, email, phone, Instagram and Facebook adapters and lead-search/outreach delivery remain unconnected; their status is shown explicitly. See [AI support architecture and activation](docs/ai-support-team.md) for the full implementation boundary, permission model, channel plan and setup.
