@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import {
   appointmentMeetingLink,
+  GoogleMeetError,
   createMeetingLink,
   testGoogleMeetConnection,
   videoProvider,
@@ -106,6 +107,52 @@ test("a Meet connection test verifies Google directly and never falls back", asy
   );
   await assert.rejects(
     testGoogleMeetConnection((async () => reply(403, {})) as typeof fetch),
+  );
+});
+
+test("Google failures expose only a safe stage, status and error code", async () => {
+  connect();
+  for (const [stage, reason] of [
+    ["oauth", "invalid_client"],
+    ["space", "SERVICE_DISABLED"],
+  ] as const) {
+    await assert.rejects(
+      testGoogleMeetConnection((async (url: string) => {
+        if (url.includes("oauth2"))
+          return stage === "oauth"
+            ? reply(401, {
+                error: reason,
+                error_description: "private description",
+              })
+            : reply(200, {
+                access_token: "private-access-token",
+                expires_in: 3600,
+              });
+        return reply(403, {
+          error: {
+            message: "private description",
+            status: "PERMISSION_DENIED",
+            details: [{ reason }],
+          },
+        });
+      }) as typeof fetch),
+      (error: unknown) => {
+        assert.ok(error instanceof GoogleMeetError);
+        assert.equal(error.stage, stage);
+        assert.equal(error.reason, reason);
+        assert.doesNotMatch(error.message, /private/);
+        return true;
+      },
+    );
+  }
+  await assert.rejects(
+    testGoogleMeetConnection((async () =>
+      reply(400, { error: "secret in a malformed error" })) as typeof fetch),
+    (error: unknown) => {
+      assert.ok(error instanceof GoogleMeetError);
+      assert.equal(error.reason, "REQUEST_FAILED");
+      return true;
+    },
   );
 });
 

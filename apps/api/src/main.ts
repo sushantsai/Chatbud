@@ -54,6 +54,7 @@ import helmet from "helmet";
 import {
   appointmentMeetingLink,
   googleMeetConfigured,
+  GoogleMeetError,
   testGoogleMeetConnection,
   videoProvider,
 } from "./meeting";
@@ -1161,9 +1162,20 @@ class GoogleIntegrationController {
     await this.authorize(auth, mode, session, "test");
     try {
       return await testGoogleMeetConnection();
-    } catch {
+    } catch (error) {
       throw new HttpException(
-        "Google Meet could not create a room. Check the connected Google account, Meet API access and OAuth permissions, then try again.",
+        {
+          message:
+            "Google Meet could not create a room. Check the connected Google account, Meet API access and OAuth permissions, then try again.",
+          code: "GOOGLE_MEET_UNAVAILABLE",
+          ...(error instanceof GoogleMeetError
+            ? {
+                stage: error.stage,
+                googleStatus: error.status,
+                reason: error.reason,
+              }
+            : {}),
+        },
         503,
       );
     }
