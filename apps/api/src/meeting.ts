@@ -16,6 +16,22 @@ export const videoProvider = () =>
 type Fetch = typeof fetch;
 let cached: { token: string; expiresAt: number } | null = null;
 
+// Only controlled stages and provider error codes leave the Google boundary.
+// Never return tokens, raw response bodies or provider error descriptions.
+export class GoogleMeetError extends Error {
+  constructor(
+    readonly stage: "oauth" | "space",
+    readonly status: number,
+    readonly reason: string,
+  ) {
+    super(`Google ${stage} request failed (${status}: ${reason})`);
+  }
+}
+const safeReason = (value: unknown) =>
+  typeof value === "string" && /^[a-zA-Z_]{1,64}$/.test(value)
+    ? value
+    : "REQUEST_FAILED";
+
 async function accessToken(request: Fetch): Promise<string> {
   if (cached && cached.expiresAt > Date.now() + 60000) return cached.token;
   const { clientId, clientSecret, refreshToken } = google();
@@ -36,9 +52,7 @@ async function accessToken(request: Fetch): Promise<string> {
     error?: string;
   };
   if (!response.ok || !body.access_token)
-    throw new Error(
-      `Google token request failed: ${body.error || response.status}`,
-    );
+    throw new GoogleMeetError("oauth", response.status, safeReason(body.error));
   cached = {
     token: body.access_token,
     expiresAt: Date.now() + (body.expires_in || 3600) * 1000,
@@ -59,11 +73,16 @@ async function googleMeetLink(request: Fetch): Promise<string> {
   });
   const body = (await response.json()) as {
     meetingUri?: string;
-    error?: { message?: string };
+    error?: { status?: string; details?: { reason?: string }[] };
   };
   if (!response.ok || !body.meetingUri?.startsWith("https://meet.google.com/"))
-    throw new Error(
-      `Google Meet space request failed: ${body.error?.message || response.status}`,
+    throw new GoogleMeetError(
+      "space",
+      response.status,
+      safeReason(
+        body.error?.details?.find((detail) => detail.reason)?.reason ||
+          body.error?.status,
+      ),
     );
   return body.meetingUri;
 }
