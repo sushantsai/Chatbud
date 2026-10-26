@@ -4374,4 +4374,400 @@ dialog :is(input, select, textarea) {
   font-size: 15px;
 }
 
-.google-signin{display:flex;align-items:center;justify-content:center;gap:12px;background:white;color:var(--ink);border:1px solid var(--line);margin-bottom:20px}.google-signin:hover:not(:disabled){background:var(--bg);color:var(--ink)}.auth-divider{display:flex;align-items:center;gap:13px;color:var(--muted);font-size:12px;margin:18px 0 24px}.auth-divider:before,.auth-divider:after{content:"";height:1px;background:var(--line);flex:1}.oauth-result{max-width:650px;margin:30px auto}.oauth-result p{margin:18px 0;line-height:1.8}
+.google-signin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: white;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+.google-signin:hover:not(:disabled) {
+  background: var(--bg);
+  color: var(--ink);
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 18px 0 24px;
+}
+.auth-divider:before,
+.auth-divider:after {
+  content: "";
+  height: 1px;
+  background: var(--line);
+  flex: 1;
+}
+.oauth-result {
+  max-width: 650px;
+  margin: 30px auto;
+}
+.oauth-result p {
+  margin: 18px 0;
+  line-height: 1.8;
+}
+
+/* Accepted clinical presentation — previous stylesheet retained in the classic deployment. */
+:root {
+  --ink: #20332f;
+  --muted: #61706a;
+  --brand: #245e55;
+  --brand-dark: #19473f;
+  --brand-soft: #eef5f2;
+  --bg: #f7f9f8;
+  --line: #dfe7e2;
+  --radius: 10px;
+}
+body {
+  font-size: 15px;
+}
+.hero {
+  background: #fff;
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+.hero h1 {
+  font-size: clamp(28px, 4vw, 42px);
+  letter-spacing: -1px;
+}
+.hero-panel {
+  background: var(--brand-soft);
+}
+.hero-panel h2 {
+  font-size: 18px;
+}
+.panel,
+.provider-card,
+.need-card {
+  box-shadow: none;
+}
+.page-heading h1 {
+  font-size: 28px;
+}
+.main-content {
+  max-width: 1180px;
+}
+.button {
+  border-radius: 7px;
+  box-shadow: none;
+}
+.provider-card .bio {
+  font-size: 14px;
+}
+.avatar {
+  background: #edf3f0 !important;
+  color: var(--brand) !important;
+}
+.tags span {
+  background: #f4f6f5;
+  color: var(--muted);
+}
+[data-area] {
+  --accent: var(--brand);
+  --accent-soft: var(--brand-soft);
+  --accent-line: var(--line);
+}
+.language-select {
+  width: auto;
+  max-width: 110px;
+  min-height: 36px;
+  font-size: 12px;
+  padding: 6px;
+}
+.persistent-help {
+  position: fixed;
+  right: 20px;
+  bottom: 22px;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: white;
+  border: 1px solid var(--line);
+  padding: 10px 14px;
+  border-radius: 24px;
+  box-shadow: 0 2px 8px #20332f12;
+  font-weight: 600;
+}
+.clinical-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 22px;
+}
+.clinical-layout > aside {
+  align-self: start;
+}
+.clinical-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 14px 0;
+}
+.clinical-summary dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.clinical-summary dd {
+  margin: 4px 0;
+  font-weight: 600;
+}
+.service-card {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 12px 0;
+  background: #fff;
+}
+.service-card h3 {
+  margin: 0 0 8px;
+}
+.service-card footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+}
+.flow-steps {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+.flow-steps li {
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+}
+.flow-steps li[aria-current="step"] {
+  border-color: var(--brand);
+  color: var(--brand);
+  font-weight: 700;
+}
+.workflow-status {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--brand);
+  border-radius: var(--radius);
+  background: #fff;
+}
+.workflow-status h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+.workflow-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.workflow-note {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.workflow-timeline {
+  margin: 20px 0;
+}
+.workflow-timeline li {
+  margin: 12px 0;
+  font-size: 14px;
+}
+.workflow-timeline time {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.filter-toggle {
+  display: none;
+}
+.filter-chip-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.filter-chip-row button {
+  font-size: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 20px;
+  padding: 5px 10px;
+}
+.filter-panel {
+  margin-bottom: 16px;
+}
+.filter-panel label {
+  font-size: 13px;
+}
+.filter-panel select {
+  max-width: 180px;
+}
+.profile-heading {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+.profile-heading h1 {
+  margin: 0 0 6px;
+}
+.profile-facts {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+}
+.need-first {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  margin-bottom: 24px;
+}
+.need-first h1 {
+  font-size: 30px;
+  margin: 0 0 8px;
+}
+.need-first .workflow-actions a {
+  flex: 1;
+  min-width: 150px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-weight: 600;
+  background: #fafcfb;
+}
+.required-actions {
+  margin: 20px 0;
+}
+.required-actions a {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
+}
+.care-warning {
+  padding: 12px;
+  border: 1px solid #e5c88e;
+  background: #fffbef;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+.queue-split {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 18px;
+}
+.queue-list button {
+  display: block;
+  text-align: left;
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 14px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+}
+.queue-list button[aria-pressed="true"] {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+.queue-list small {
+  display: block;
+  color: var(--muted);
+}
+.form-stack {
+  display: grid;
+  gap: 16px;
+}
+.form-stack label {
+  display: grid;
+  gap: 6px;
+}
+.form-stack textarea {
+  min-height: 120px;
+}
+.draft-status {
+  font-size: 12px;
+  color: var(--muted);
+}
+@media (max-width: 760px) {
+  .clinical-layout,
+  .queue-split {
+    grid-template-columns: 1fr;
+  }
+  .clinical-layout > aside {
+    order: 2;
+  }
+  .persistent-help {
+    bottom: 82px;
+    right: 12px;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+  .filter-toggle {
+    display: inline-flex;
+  }
+  .filter-panel {
+    display: none;
+  }
+  .filter-panel.is-open {
+    display: block;
+    position: fixed;
+    inset: 15% 0 0;
+    z-index: 80;
+    background: #fff;
+    padding: 24px;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -40px 0 120px #142a2260;
+  }
+  .filter-panel.is-open .filter-row {
+    display: grid;
+    gap: 20px;
+  }
+  .filter-panel select {
+    max-width: none;
+  }
+  .language-select {
+    max-width: 80px;
+  }
+  .profile-heading {
+    align-items: start;
+  }
+  .clinical-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+  .need-first h1 {
+    font-size: 25px;
+  }
+  .flow-steps {
+    gap: 2px;
+  }
+  .flow-steps li {
+    font-size: 11px;
+    padding: 8px;
+  }
+  .top-actions .location {
+    display: none;
+  }
+  .queue-split.case-open .queue-list {
+    display: none;
+  }
+  .queue-split:not(.case-open) .queue-detail {
+    display: none;
+  }
+}
+@media(max-width:760px){.topbar .top-actions{gap:6px;min-width:0}.topbar .brand{font-size:24px;gap:6px}.topbar .brand-icon{width:32px;height:32px}.topbar .top-actions .button.small{font-size:12px;padding:8px 10px;min-height:36px}.topbar .language-select{width:72px;padding:5px;font-size:11px}.topbar .top-actions .icon-button{width:32px;height:34px;padding:5px}.application-fields{min-inline-size:0;border:0;padding:0;margin:0}}

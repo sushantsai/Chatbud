@@ -140,6 +140,23 @@ export const serviceInput = z
     durationMinutes: z.number().int().min(15).max(180),
     price: z.number().min(0).max(100000),
     active: z.boolean(),
+    confirmationMode: z.enum(["INSTANT", "APPROVAL"]).default("APPROVAL"),
+    minimumNoticeMinutes: z.number().int().min(60).max(43200).default(240),
+    intakeStage: z
+      .enum(["NONE", "BEFORE_PAYMENT", "AFTER_CONFIRMATION"])
+      .default("NONE"),
+    intakeQuestions: z
+      .array(
+        z
+          .object({
+            id: z.string().regex(/^[a-zA-Z0-9_-]{1,50}$/),
+            label: text(240, 1),
+            required: z.boolean(),
+          })
+          .strict(),
+      )
+      .max(30)
+      .default([]),
   })
   .strict();
 export const availabilityInput = z
@@ -179,6 +196,10 @@ export const reviewDecision = z
   .object({
     caseId: z.string().uuid(),
     decision: z.enum(["APPROVED", "REJECTED", "NEEDS_INFORMATION"]),
+    corrections: z
+      .array(z.object({ field: text(100, 1), reason: text(1000, 3) }).strict())
+      .max(40)
+      .default([]),
     rationale: text(1000, 0),
   })
   .strict();
@@ -279,6 +300,8 @@ const httpsUrl = z.string().url().startsWith("https://").max(300);
 const percentCap = (d: { kind: string; value: number }) =>
   d.kind !== "PERCENT" || d.value <= 90;
 export const teamRoles = [
+  "FINANCE",
+  "FULFILLMENT",
   "VERIFICATION",
   "CLINICAL_REVIEW",
   "SUPPORT",
@@ -547,6 +570,7 @@ export const shopActions = {
   order_create: z
     .object({
       items: bag,
+      expectedTotal: z.number().nonnegative().optional(),
       promoCode: promo,
       delivery: z
         .object({

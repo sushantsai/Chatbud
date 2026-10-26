@@ -34,6 +34,7 @@ import {
   Video,
   Package,
 } from "lucide-react";
+import { LanguageSelect, useLanguage } from "./language";
 import { features } from "../_lib/features";
 import { areaName, findNeed } from "../_lib/needs";
 import { canOpen, type TeamArea } from "../_lib/roles";
@@ -54,19 +55,18 @@ const tabs: Tab[] = [
   { href: "/", label: "Home", icon: House },
   {
     href: "/professionals",
-    label: "Professionals",
+    label: "Care",
     short: "Care",
     icon: Users,
   },
   {
     href: "/appointments",
     label: "Appointments",
-    short: "Bookings",
+    short: "Appointments",
     icon: CalendarDays,
   },
   { href: "/store", label: "Store", icon: ShoppingBag },
   { href: "/my-health", label: "My Health", icon: HeartPulse },
-  { href: "/help", label: "Help", icon: LifeBuoy },
 ];
 const headings: Record<string, [string, string, string]> = {
   "/": [
@@ -170,7 +170,11 @@ const headings: Record<string, [string, string, string]> = {
     "Field research workspace",
     "Studies, consent, assessments and referrals.",
   ],
-  "/admin/integrations": ["CHATBUD TEAM", "Google connections", "Sign-in and online consultation setup."],
+  "/admin/integrations": [
+    "CHATBUD TEAM",
+    "Google connections",
+    "Sign-in and online consultation setup.",
+  ],
   "/help": [
     "HELP",
     "We are here to put things right.",
@@ -235,9 +239,9 @@ const portals: Record<
       },
       {
         href: "/admin/payments",
-        label: "Payments",
+        label: "Finance & refunds",
         icon: Wallet,
-        area: "support",
+        area: "finance",
       },
       {
         href: "/admin/orders",
@@ -251,7 +255,24 @@ const portals: Record<
         icon: Package,
         area: "catalogue",
       },
-      { href: "/admin/integrations", label: "Google connections", icon: Video, area: "support" },
+      {
+        href: "/admin/integrations",
+        label: "Google connections",
+        icon: Video,
+        area: "support",
+      },
+      {
+        href: "/admin/work-queue",
+        label: "Work queue",
+        icon: ClipboardList,
+        area: "operations",
+      },
+      {
+        href: "/admin/settings",
+        label: "Operating settings",
+        icon: ClipboardList,
+        area: "settings",
+      },
       { href: "/admin/team", label: "Team", icon: Users, area: "team" },
     ],
   },
@@ -361,6 +382,7 @@ function Workspace({
   userName: string;
   children: React.ReactNode;
 }) {
+  const { t: translate } = useLanguage();
   const pathname = usePathname(),
     router = useRouter();
   const [catalog, setCatalog] = useState<any>({ providers: [], products: [] }),
@@ -379,6 +401,29 @@ function Workspace({
       orders: [],
       roles: [],
     });
+  const [cartLoaded, setCartLoaded] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("chatbud-bag-v1") || "{}");
+      if (saved && typeof saved === "object")
+        setCart(
+          Object.fromEntries(
+            Object.entries(saved).filter(
+              ([id, q]) =>
+                /^[a-zA-Z0-9-]+$/.test(id) &&
+                Number.isInteger(q) &&
+                Number(q) > 0 &&
+                Number(q) <= 10,
+            ),
+          ) as Record<string, number>,
+        );
+    } catch {}
+    setCartLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (cartLoaded)
+      localStorage.setItem("chatbud-bag-v1", JSON.stringify(cart));
+  }, [cart, cartLoaded]);
   const mounted = useRef(false),
     requests = useRef(new Set<AbortController>());
   // A layout effect, so the flag is set before any page's own effect calls api().
@@ -537,6 +582,20 @@ function Workspace({
   const heading: [string, string, string] = need
     ? [areaName(need.area).toUpperCase(), need.title, need.summary]
     : headings[pathname] || headings[home];
+  const dedicatedHeading =
+    pathname.startsWith("/book/") ||
+    pathname.startsWith("/professionals/") ||
+    pathname.startsWith("/appointments/") ||
+    pathname.startsWith("/store/") ||
+    [
+      "/bag",
+      "/checkout",
+      "/pro",
+      "/admin",
+      "/admin/payments",
+      "/admin/settings",
+      "/admin/work-queue",
+    ].includes(pathname);
   const crumb =
     nav.find((t) => t.href !== home && isCurrent(t.href))?.label ||
     (pathname === "/protect" ? "Protect" : need ? need.title : first.label);
@@ -568,8 +627,7 @@ function Workspace({
     setError,
     openAuth,
     openBooking: (provider) => {
-      setChosen(provider);
-      setModal("booking");
+      router.push(`/book/${provider.serviceId}`);
       setError("");
     },
   };
@@ -592,11 +650,12 @@ function Workspace({
                 aria-current={isCurrent(t.href) ? "page" : undefined}
                 className={isCurrent(t.href) ? "active" : ""}
               >
-                {t.label}
+                {translate(t.label)}
               </Link>
             ))}
           </nav>
           <div className="top-actions">
+            <LanguageSelect />
             {portal ? (
               <Link className="location" href="/">
                 <ArrowUpRight size={15} /> Chatbud for clients
@@ -610,7 +669,7 @@ function Workspace({
               <button
                 className="icon-button cart-button"
                 aria-label={`Shopping bag, ${cartCount} items`}
-                onClick={() => setCartOpen(true)}
+                onClick={() => router.push("/bag")}
               >
                 <ShoppingBag size={20} />
                 {cartCount > 0 && <b>{cartCount}</b>}
@@ -653,6 +712,13 @@ function Workspace({
             </select>
           </div>
         )}
+        <Link
+          className="persistent-help"
+          href={portal === portals.pro ? "/pro/help" : "/help"}
+        >
+          <LifeBuoy size={18} />
+          {translate("Help")}
+        </Link>
         <div className="workspace">
           {portal && (
             <aside className="sidebar">
@@ -667,7 +733,7 @@ function Workspace({
                   className={isCurrent(t.href) ? "selected" : ""}
                 >
                   <t.icon size={19} />
-                  {t.label}
+                  {translate(t.label)}
                 </Link>
               ))}
               {!portal && features.protect !== "off" && (
@@ -718,13 +784,17 @@ function Workspace({
                 Chatbud <span>/</span> {crumb}
               </div>
             )}
-            <div className={`page-heading${pathname === "/" ? " quiet" : ""}`}>
-              <div>
-                <span className="eyebrow">{heading[0]}</span>
-                <h1>{heading[1]}</h1>
-                <p>{heading[2]}</p>
+            {!dedicatedHeading && (
+              <div
+                className={`page-heading${pathname === "/" ? " quiet" : ""}`}
+              >
+                <div>
+                  <span className="eyebrow">{heading[0]}</span>
+                  <h1>{translate(heading[1])}</h1>
+                  <p>{translate(heading[2])}</p>
+                </div>
               </div>
-            </div>
+            )}
             {notice && (
               <div className="notice" role="status">
                 <Check size={18} />
@@ -767,7 +837,7 @@ function Workspace({
                   className={isCurrent(t.href) ? "active" : ""}
                 >
                   <t.icon size={22} />
-                  {t.short || t.label}
+                  {translate(t.label)}
                 </Link>
               ))}
             </nav>

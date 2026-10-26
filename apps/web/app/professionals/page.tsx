@@ -1,26 +1,12 @@
 "use client";
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Check,
-  Clock,
-  Dumbbell,
-  Globe,
-  Search,
-  ShieldCheck,
-  SlidersHorizontal,
-  Stethoscope,
-} from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Search, SlidersHorizontal, ShieldCheck, X } from "lucide-react";
 import { useApp } from "../_components/app";
-import {
-  ComingSoon,
-  fitnessProfessions,
-  money,
-  professions,
-} from "../_components/ui";
-import { features, type Feature } from "../_lib/features";
-const groups: { id: Feature; label: string; professions: string[] }[] = [
+import { useLanguage } from "../_components/language";
+import { Dialog, money, professions } from "../_components/ui";
+const groups = [
   {
     id: "mental",
     label: "Mental health",
@@ -37,254 +23,198 @@ const groups: { id: Feature; label: string; professions: string[] }[] = [
     professions: ["personal_trainer", "fitness_coach", "yoga_instructor"],
   },
 ];
-export default function Professionals() {
+export default function Care() {
   return (
-    <Suspense
-      fallback={
-        <div className="loading" role="status">
-          Loading your options…
-        </div>
-      }
-    >
+    <Suspense fallback={<p role="status">Loading care…</p>}>
       <Directory />
     </Suspense>
   );
 }
 function Directory() {
-  const { mode, catalog, loading, catalogFailed, openBooking } = useApp();
+  const { catalog, loading, catalogFailed, mode } = useApp();
+  const { t } = useLanguage();
   const router = useRouter();
-  const visible = groups.filter((g) => features[g.id] !== "off");
-  const category = useSearchParams().get("category");
-  const group = visible.find((g) => g.id === category);
+  const category = useSearchParams().get("category") || "all";
   const [query, setQuery] = useState(""),
-    [profession, setProfession] = useState("all"),
-    [budget, setBudget] = useState(3000);
-  const chooseGroup = (id: string) => {
-    setProfession("all");
-    router.replace(
-      id === "all" ? "/professionals" : `/professionals?category=${id}`,
-    );
-  };
-  const allowed = (group ? [group] : visible)
-    .filter((g) => features[g.id] === "live")
-    .flatMap((g) => g.professions);
-  const providers = catalog.providers.filter(
+    [language, setLanguage] = useState("all"),
+    [budget, setBudget] = useState("all"),
+    [availability, setAvailability] = useState("all"),
+    [filters, setFilters] = useState(false);
+  const group = groups.find((g) => g.id === category);
+  const allowed = (group ? [group] : groups).flatMap((g) => g.professions);
+  const matching = catalog.providers.filter(
     (p: any) =>
       allowed.includes(p.profession) &&
-      (profession === "all" || p.profession === profession) &&
-      (p.price === null || p.price <= budget) &&
-      `${p.name} ${p.profession} ${p.bio} ${(p.focus || []).join(" ")}`
+      (language === "all" || p.languages.includes(language)) &&
+      (budget === "all" || p.price === null || p.price <= Number(budget)) &&
+      (availability === "all" || p.serviceId) &&
+      `${p.name} ${p.bio} ${p.profession} ${p.service || ""}`
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
-  const listed = catalog.providers.some((p: any) =>
-    allowed.includes(p.profession),
+  const people = Array.from(
+    new Map<string, any>(matching.map((p: any) => [p.id, p])).values(),
+  );
+  const clear = () => {
+    setQuery("");
+    setLanguage("all");
+    setBudget("all");
+    setAvailability("all");
+  };
+  const controls = (
+    <div className="filter-row">
+      <label>
+        Language
+        <select value={language} onChange={(e) => setLanguage(e.target.value)}>
+          <option value="all">All languages</option>
+          <option value="en">English</option>
+          <option value="ne">नेपाली</option>
+          <option value="hi">हिन्दी</option>
+        </select>
+      </label>
+      <label>
+        Consultation fee
+        <select value={budget} onChange={(e) => setBudget(e.target.value)}>
+          <option value="all">{t("All prices")}</option>
+          {[1000, 1500, 3000].map((n) => (
+            <option value={n} key={n}>
+              Up to NPR {n.toLocaleString()}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Availability
+        <select
+          value={availability}
+          onChange={(e) => setAvailability(e.target.value)}
+        >
+          <option value="all">All professionals</option>
+          <option value="bookable">Services open for booking</option>
+        </select>
+      </label>
+    </div>
   );
   return (
     <>
-      <div className="segments" role="group" aria-label="Care category">
-        {[{ id: "all", label: "All care" }, ...visible].map((g) => (
+      <div className="segments" aria-label="Care category">
+        {[{ id: "all", label: "All care" }, ...groups].map((g) => (
           <button
             key={g.id}
-            aria-pressed={(group?.id || "all") === g.id}
-            className={(group?.id || "all") === g.id ? "chosen" : ""}
-            onClick={() => chooseGroup(g.id)}
+            aria-pressed={category === g.id}
+            className={category === g.id ? "chosen" : ""}
+            onClick={() =>
+              router.replace(
+                g.id === "all"
+                  ? "/professionals"
+                  : `/professionals?category=${g.id}`,
+              )
+            }
           >
-            {g.label}
-            {g.id !== "all" && features[g.id as Feature] === "soon" && (
-              <span className="soon-badge">Soon</span>
-            )}
+            {t(g.label)}
           </button>
         ))}
       </div>
-      {group && features[group.id] === "soon" ? (
-        <ComingSoon icon={Dumbbell} title={`${group.label} is on its way`}>
-          Qualified {group.label.toLowerCase()} professionals will be listed
-          here once their qualifications have been reviewed.
-        </ComingSoon>
+      <div className="searchbar">
+        <Search size={18} />
+        <input
+          aria-label="Search professionals"
+          placeholder="Search name, service or care need"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <button
+          className="text-button filter-toggle"
+          onClick={() => setFilters(true)}
+        >
+          <SlidersHorizontal size={16} />
+          {t("Filters")}
+        </button>
+      </div>
+      <div className="filter-panel">{controls}</div>
+      {filters && (
+        <Dialog title={t("Filters")} close={() => setFilters(false)}>
+          {controls}
+          <div className="workflow-actions">
+            <button className="button" onClick={() => setFilters(false)}>
+              Show {people.length} results
+            </button>
+            <button className="text-button" onClick={clear}>
+              {t("Clear filters")}
+            </button>
+          </div>
+        </Dialog>
+      )}
+      <div className="filter-chip-row">
+        {language !== "all" && (
+          <button onClick={() => setLanguage("all")}>
+            {language.toUpperCase()} ×
+          </button>
+        )}
+        {budget !== "all" && (
+          <button onClick={() => setBudget("all")}>Up to NPR {budget} ×</button>
+        )}
+        {availability !== "all" && (
+          <button onClick={() => setAvailability("all")}>Bookable ×</button>
+        )}
+      </div>
+      <div className="results-label">
+        <span>{loading ? "Loading…" : `${people.length} professionals`}</span>
+        <span>
+          <ShieldCheck size={15} />
+          {mode === "demo" ? "Sample profiles" : "Approved professional scopes"}
+        </span>
+      </div>
+      {catalogFailed ? (
+        <p role="alert">Care could not be loaded. Refresh to try again.</p>
+      ) : !loading && people.length === 0 ? (
+        <section className="panel empty">
+          <h2>No matching professionals</h2>
+          <p>Try another category or clear the filters.</p>
+          <button className="button secondary" onClick={clear}>
+            {t("Clear filters")}
+          </button>
+        </section>
       ) : (
-        <>
-          <div className="searchbar">
-            <Search size={20} />
-            <input
-              aria-label="Search professionals"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by professional, specialty, or concern…"
-            />
-            <span>
-              <SlidersHorizontal size={17} /> Find your fit
-            </span>
-          </div>
-          <div className="filter-row">
-            <div className="chips">
-              {["all", ...allowed].map((id) => (
-                <button
-                  key={id}
-                  aria-pressed={profession === id}
-                  onClick={() => setProfession(id)}
-                  className={profession === id ? "chip chosen" : "chip"}
+        <div className="provider-grid">
+          {people.map((p) => (
+            <article className="provider-card" key={p.id}>
+              <div className="avatar">
+                {p.name
+                  .split(" ")
+                  .map((s: string) => s[0])
+                  .slice(0, 2)
+                  .join("")}
+              </div>
+              <h2>{p.name}</h2>
+              <p className="profession">
+                {professions[p.profession] || p.profession}
+              </p>
+              <p className="bio">{p.bio}</p>
+              <div className="profile-facts">
+                <span>
+                  {p.languages
+                    .map(
+                      (l: string) =>
+                        ({ en: "English", ne: "Nepali", hi: "Hindi" })[l] || l,
+                    )
+                    .join(" · ")}
+                </span>
+                <span>
+                  {p.serviceId ? money(p.price) : "Services opening soon"}
+                </span>
+              </div>
+              <footer>
+                <Link
+                  className="button secondary"
+                  href={`/professionals/${p.id}`}
                 >
-                  {id === "all" ? "All professionals" : `${professions[id]}s`}
-                </button>
-              ))}
-            </div>
-            <select
-              aria-label="Maximum consultation fee"
-              value={budget}
-              onChange={(e) => setBudget(Number(e.target.value))}
-            >
-              <option value={3000}>Up to NPR 3,000</option>
-              <option value={1800}>Up to NPR 1,800</option>
-              <option value={1500}>Up to NPR 1,500</option>
-              <option value={1000}>Up to NPR 1,000</option>
-            </select>
-          </div>
-          {loading ? (
-            <div className="loading" role="status">
-              Loading your options…
-            </div>
-          ) : null}
-          {!loading && !catalogFailed && (
-            <>
-              <div className="results-label">
-                <span>
-                  {providers.length} professionals{" "}
-                  {mode === "demo" ? "in this preview" : "available"}
-                </span>
-                <span>
-                  <ShieldCheck size={15} />
-                  {mode === "demo"
-                    ? "Sample profiles"
-                    : "Approved professional scopes"}
-                </span>
-              </div>
-              {providers.length === 0 ? (
-                <div className="empty">
-                  <Stethoscope size={36} />
-                  <h2>
-                    {listed
-                      ? "No matching professionals"
-                      : "Professional onboarding is underway"}
-                  </h2>
-                  <p>
-                    {listed
-                      ? "Try a different category or fee range."
-                      : "Approved profiles will appear here as professionals join Chatbud."}
-                  </p>
-                  {listed ? (
-                    <button
-                      className="button"
-                      onClick={() => {
-                        setProfession("all");
-                        setBudget(3000);
-                        setQuery("");
-                      }}
-                    >
-                      Clear filters
-                    </button>
-                  ) : (
-                    <Link className="button" href="/pro">
-                      Apply as a professional
-                    </Link>
-                  )}
-                </div>
-              ) : (
-                <div className="provider-grid">
-                  {providers.map((p: any, i: number) => (
-                    <article
-                      className="provider-card"
-                      key={p.serviceId || p.id}
-                    >
-                      <div className="card-top">
-                        <div
-                          className={`avatar tone-${p.color || ["blue", "orange", "green", "purple"][i % 4]}`}
-                        >
-                          {p.name
-                            .split(" ")
-                            .map((n: string) => n[0])
-                            .slice(0, 2)
-                            .join("")}
-                        </div>
-                        <span className="profile-label">
-                          {mode === "demo"
-                            ? "Sample profile"
-                            : "Scope approved"}
-                          <Check size={13} />
-                        </span>
-                      </div>
-                      <h2>{p.name}</h2>
-                      <p className="profession">
-                        {professions[p.profession] || p.profession}
-                        {fitnessProfessions.includes(p.profession) &&
-                          " · Fitness, not medical care"}
-                      </p>
-                      <p className="bio">{p.bio}</p>
-                      <div className="tags">
-                        {(p.focus || (p.service ? [p.service] : [])).map(
-                          (f: string) => (
-                            <span key={f}>{f}</span>
-                          ),
-                        )}
-                      </div>
-                      <div className="provider-meta">
-                        <span>
-                          <Globe size={14} />
-                          {p.languages
-                            .map((l: string) =>
-                              l === "ne"
-                                ? "Nepali"
-                                : l === "en"
-                                  ? "English"
-                                  : l,
-                            )
-                            .join(", ")}
-                        </span>
-                        {p.duration && (
-                          <span>
-                            <Clock size={14} />
-                            {p.duration} min
-                          </span>
-                        )}
-                      </div>
-                      {p.serviceId ? (
-                        <footer>
-                          <div>
-                            <strong>{money(p.price)}</strong>
-                            <span>per session</span>
-                          </div>
-                          <button
-                            className="button"
-                            onClick={() => openBooking(p)}
-                          >
-                            View availability
-                          </button>
-                        </footer>
-                      ) : (
-                        <footer>
-                          <div>
-                            <strong>Bookings open soon</strong>
-                            <span>Setting up services and hours</span>
-                          </div>
-                        </footer>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              )}
-              <div className="care-note">
-                <ShieldCheck size={21} />
-                <div>
-                  <strong>Human care. Clear choices.</strong>
-                  <p>
-                    Each professional’s service scope is reviewed before
-                    publication. Chatbud does not provide emergency care.
-                  </p>
-                </div>
-              </div>
-            </>
-          )}
-        </>
+                  {t("View profile")}
+                </Link>
+              </footer>
+            </article>
+          ))}
+        </div>
       )}
     </>
   );

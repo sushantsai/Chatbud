@@ -25,9 +25,9 @@ export const areas: {
   name: string;
   line: string;
 }[] = [
-  { id: "mental", name: "Mind", line: "Feel steadier, sleep and focus." },
-  { id: "nutrition", name: "Nourish", line: "Food that fits your body." },
-  { id: "fitness", name: "Move", line: "Strength, energy and ease." },
+  { id: "mental", name: "Mental health", line: "Feel steadier, sleep and focus." },
+  { id: "nutrition", name: "Nutrition", line: "Food that fits your body." },
+  { id: "fitness", name: "Fitness", line: "Strength, energy and ease." },
 ];
 const mind = ["clinical_psychologist", "psychiatrist", "counselor"];
 const food = ["dietitian", "nutritionist"];

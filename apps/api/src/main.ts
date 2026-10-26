@@ -51,6 +51,7 @@ import {
   order,
 } from "./schemas";
 import helmet from "helmet";
+import { workflowActions, workflowRequest } from "./workflows";
 import {
   appointmentMeetingLink,
   googleMeetConfigured,
@@ -293,10 +294,14 @@ class DataService {
       throw new HttpException("Sign in to continue", 401);
     const token = authorization.slice(7);
     const { data, error } = await this.db.auth.getUser(token);
-    if (error || !data.user?.email_confirmed_at)
+    if (
+      error ||
+      !(data.user?.email_confirmed_at || data.user?.phone_confirmed_at)
+    )
       throw new HttpException("A verified sign-in is required", 401);
     const profile = {
       email: data.user.email,
+      phone: data.user.phone_confirmed_at ? data.user.phone : undefined,
       name:
         data.user.user_metadata?.display_name ||
         data.user.user_metadata?.full_name,
@@ -334,6 +339,25 @@ class AppController {
       demoAvailable: this.data.demoEnabled,
       videoProvider: videoProvider(),
     };
+  }
+  @Post("workflow") async workflow(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+  ) {
+    const request = parse(workflowRequest, body);
+    const input = parse(workflowActions[request.action], request.data);
+    const actor = await this.data.actor(auth);
+    if (request.action === "join") {
+      const id = (input as { id: string }).id;
+      const url = await this.data.meeting(actor, id, "confirmed_participant");
+      await this.data.rpc(
+        "meeting_ready",
+        actor,
+        { id, url },
+        "chatbud_workflow",
+      );
+    }
+    return this.data.rpc(request.action, actor, input, "chatbud_workflow");
   }
   @Get("catalog") async catalog(
     @Query("mode") mode: string,
@@ -728,10 +752,14 @@ class CareController {
   ) {
     this.data.liveOnly(mode, session);
     const input = parse(appointmentProposal, body);
-    return this.data.care(
-      "provider_appointment_propose",
+    return this.data.rpc(
+      "reschedule_request",
       await this.data.actor(auth),
-      input,
+      {
+        id: input.id,
+        note: `Professional requests replacement at ${input.startsAt}. Coordinate with the client; retain original until confirmed.`,
+      },
+      "chatbud_workflow",
     );
   }
   @Post("appointments/reschedule") async respond(

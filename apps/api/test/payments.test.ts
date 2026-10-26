@@ -172,7 +172,7 @@ test("Khalti counts only Completed for the full amount as paid", async () => {
   );
 });
 
-test("Fonepay is listed but not yet available; pay later always is", () => {
+test("Fonepay is unavailable and pay later is disabled for the prepaid workflow", () => {
   assert.equal(methods().find((m) => m.id === "FONEPAY")?.available, false);
-  assert.equal(methods().find((m) => m.id === "LATER")?.available, true);
+  assert.equal(methods().find((m) => m.id === "LATER")?.available, false);
 });

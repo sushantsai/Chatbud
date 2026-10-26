@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { CareRecords } from "../_components/care-records";
 import {
   Award,
   CalendarDays,
@@ -46,6 +47,7 @@ export default function MyHealth() {
     );
   return (
     <>
+      {live && token && <CareRecords />}
       <div className="summary-grid">
         <Summary
           icon={CalendarDays}

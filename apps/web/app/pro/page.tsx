@@ -1,86 +1,92 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Clock, Eye, Stethoscope } from "lucide-react";
-import { Summary, nepalTime } from "../_components/ui";
+import { useApp } from "../_components/app";
+import { Notifications } from "../_components/notifications";
+import { nepalTime } from "../_components/ui";
 import { usePro } from "./_components/gate";
-import {
-  GoLive,
-  Requests,
-  confirmedAppointments,
-  isBookable,
-  pendingRequests,
-} from "./_components/sections";
-export default function ProDashboard() {
+import { GoLive, Requests } from "./_components/sections";
+const day = (s: string) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kathmandu" }).format(
+    new Date(s),
+  );
+export default function ProHome() {
+  const { api } = useApp();
   const { workspace } = usePro();
-  const upcoming = confirmedAppointments(workspace);
+  const [summary, setSummary] = useState<any>(null);
+  useEffect(() => {
+    let active = true;
+    api("workflow", "POST", { action: "provider_summary", data: {} })
+      .then((d) => active && setSummary(d))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+  const today = workspace.appointments.filter(
+    (a: any) =>
+      a.status === "CONFIRMED" &&
+      day(a.startsAt) === day(new Date().toISOString()),
+  );
   return (
     <>
       <GoLive />
-      <div className="summary-grid">
-        <Summary
-          icon={Clock}
-          label="Requests waiting"
-          value={pendingRequests(workspace).length}
-        />
-        <Summary
-          icon={CalendarDays}
-          label="Upcoming appointments"
-          value={upcoming.length}
-        />
-        <Summary
-          icon={Eye}
-          label="Directory listing"
-          value={isBookable(workspace) ? "Bookable" : "Listed, not bookable"}
-        />
-      </div>
-      <Requests />
+      {summary?.calendar.some(
+        (c: any) =>
+          c.status !== "ACTIVE" ||
+          !c.lastSyncedAt ||
+          Date.parse(c.lastSyncedAt) < Date.now() - 1800000,
+      ) && (
+        <div className="care-warning">
+          <strong>Google Calendar needs attention</strong>
+          <p>
+            Chatbud continues accepting bookings using your published
+            availability. Check external commitments and block time in Chatbud
+            until syncing is restored.
+          </p>
+          {summary.calendar.map((c: any, i: number) => (
+            <small key={i}>
+              Last sync:{" "}
+              {c.lastSyncedAt
+                ? nepalTime(c.lastSyncedAt) + " NPT"
+                : "not available"}
+            </small>
+          ))}
+        </div>
+      )}
       <section className="panel">
         <div className="panel-heading">
-          <h2>Next appointments</h2>
+          <h1>Today’s sessions</h1>
           <Link href="/pro/appointments">All appointments</Link>
         </div>
-        {upcoming.length === 0 ? (
-          <p className="empty-inline">Confirmed appointments appear here.</p>
+        {today.length === 0 ? (
+          <p>No confirmed sessions today.</p>
         ) : (
-          upcoming.slice(0, 3).map((a: any) => (
-            <div className="record" key={a.id}>
-              <span className="record-icon">
-                <CalendarDays size={22} />
-              </span>
-              <div>
-                <strong>{a.client}</strong>
-                <p>
-                  {a.service} · {nepalTime(a.startsAt)} NPT
-                </p>
-              </div>
-            </div>
+          today.map((a: any) => (
+            <article className="service-card" key={a.id}>
+              <h3>{a.client}</h3>
+              <p>
+                {a.service} · {nepalTime(a.startsAt, false)} NPT
+              </p>
+              <Link className="button" href={`/appointments/${a.id}`}>
+                Open session
+              </Link>
+            </article>
           ))
         )}
       </section>
+      <Requests />
       <section className="panel">
-        <div className="panel-heading">
-          <h2>Your services</h2>
-          <Link href="/pro/services">Manage services and hours</Link>
-        </div>
-        {workspace.services.length === 0 ? (
-          <p className="empty-inline">
-            You have not added a service yet, so clients cannot book you.
-          </p>
-        ) : (
-          workspace.services.map((s: any) => (
-            <div className="record" key={s.id}>
-              <span className="record-icon">
-                <Stethoscope size={22} />
-              </span>
-              <div>
-                <strong>{s.title}</strong>
-                <p>{s.durationMinutes} min</p>
-              </div>
-              <span className="status">{s.active ? "Bookable" : "Hidden"}</span>
-            </div>
-          ))
-        )}
+        <h2>Care plans & follow-ups</h2>
+        <p>
+          {summary?.draftPlans ?? "—"} unfinished care plans ·{" "}
+          {summary?.followups ?? "—"} scheduling follow-ups
+        </p>
+        <Link className="button secondary" href="/pro/clients">
+          Review client work
+        </Link>
       </section>
+      <Notifications />
     </>
   );
 }

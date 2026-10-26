@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Manrope } from "next/font/google";
 import "./globals.css";
+import { LanguageProvider } from "./_components/language";
 import { AppShell } from "./_components/app";
 const body = DM_Sans({ subsets: ["latin"], variable: "--font-body" });
 const display = Manrope({ subsets: ["latin"], variable: "--font-display" });
@@ -17,7 +18,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${body.variable} ${display.variable}`}>
       <body>
-        <AppShell>{children}</AppShell>
+        <LanguageProvider>
+          <AppShell>{children}</AppShell>
+        </LanguageProvider>
       </body>
     </html>
   );

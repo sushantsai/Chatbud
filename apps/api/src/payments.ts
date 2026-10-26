@@ -30,14 +30,16 @@ export function methods() {
       id: "KHALTI",
       label: "Khalti",
       detail: "Wallet, mobile banking, connectIPS or card",
-      available: !!env("KHALTI_SECRET_KEY"),
+      available:
+        !!env("KHALTI_SECRET_KEY") &&
+        (process.env.NODE_ENV !== "production" || khaltiLive()),
       test: !khaltiLive(),
     },
     {
       id: "ESEWA",
       label: "eSewa",
       detail: "Pay from your eSewa wallet",
-      available: true,
+      available: process.env.NODE_ENV !== "production" || esewaLive(),
       test: !esewaLive(),
     },
     {
@@ -51,7 +53,7 @@ export function methods() {
       id: "LATER",
       label: "Pay later",
       detail: "Pay Chatbud by cash or bank transfer before your session",
-      available: true,
+      available: false,
       test: false,
     },
   ];

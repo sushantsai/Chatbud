@@ -10,6 +10,9 @@ import {
   Umbrella,
   Video,
 } from "lucide-react";
+import { TodayAssignedTasks } from "./_components/care-records";
+import { Notifications } from "./_components/notifications";
+import { useLanguage } from "./_components/language";
 import { useApp } from "./_components/app";
 import { TodayList, useHealth } from "./_components/goals";
 import { NeedIcon } from "./_components/need-icon";
@@ -25,6 +28,7 @@ const steps = [
   ],
 ];
 export default function Home() {
+  const { t } = useLanguage();
   const { userName, token, mode, dashboard, catalog, openAuth } = useApp();
   const { health, act } = useHealth();
   const [greeting, setGreeting] = useState("Welcome");
@@ -47,8 +51,7 @@ export default function Home() {
   const next = dashboard.appointments
     .filter(
       (a: any) =>
-        ["HELD", "CONFIRMED"].includes(a.status) &&
-        Date.parse(a.startsAt) > Date.now(),
+        a.status === "CONFIRMED" && Date.parse(a.startsAt) > Date.now(),
     )
     .sort(
       (a: any, b: any) => Date.parse(a.startsAt) - Date.parse(b.startsAt),
@@ -69,51 +72,21 @@ export default function Home() {
           <p>Here is where things stand today.</p>
         </section>
       ) : (
-        <section className="hero">
-          <div className="hero-copy">
-            <span className="eyebrow">VERIFIED CARE IN NEPAL</span>
-            <h1>Expert care for your mind, food and body.</h1>
-            <p>
-              Talk to verified professionals online, follow a plan made for you,
-              and build small daily habits that last.
-            </p>
-            <div className="hero-actions">
-              <Link className="button" href="/professionals">
-                Find a professional
+        <section className="need-first">
+          <span className="eyebrow">CHATBUD CARE</span>
+          <h1>What would you like help with?</h1>
+          <p>Choose your care need and find an approved professional.</p>
+          <div className="workflow-actions">
+            {areas.map((a) => (
+              <Link key={a.id} href={`/professionals?category=${a.id}`}>
+                {t(a.name)} →
               </Link>
-              <button className="button secondary" onClick={openAuth}>
-                Create a free account
-              </button>
-            </div>
-            <ul className="trust">
-              <li>
-                <BadgeCheck size={18} /> Credentials checked
-              </li>
-              <li>
-                <Lock size={18} /> Private by default
-              </li>
-              <li>
-                <Video size={18} /> Online sessions
-              </li>
-            </ul>
-          </div>
-          <div className="hero-panel">
-            <h2>How Chatbud works</h2>
-            <ol>
-              {steps.map(([title, detail]) => (
-                <li key={title}>
-                  <div>
-                    <strong>{title}</strong>
-                    <span>{detail}</span>
-                  </div>
-                </li>
-              ))}
-            </ol>
+            ))}
           </div>
         </section>
       )}
       {next && (
-        <Link className="next-up" href="/appointments">
+        <Link className="next-up" href={`/appointments/${next.id}`}>
           <CalendarDays size={22} />
           <div>
             <strong>
@@ -129,6 +102,49 @@ export default function Home() {
           <ArrowRight size={18} />
         </Link>
       )}
+      {signedIn && (
+        <section className="panel required-actions">
+          <h2>{t("Your next steps")}</h2>
+          {dashboard.appointments
+            .filter((a: any) => a.status === "HELD")
+            .map((a: any) => (
+              <Link href={`/appointments/${a.id}`} key={a.id}>
+                <span>
+                  {a.paymentStatus === "UNPAID"
+                    ? "Complete payment"
+                    : "Awaiting professional approval"}{" "}
+                  · {a.provider}
+                </span>
+                <span>View →</span>
+              </Link>
+            ))}
+          {dashboard.appointments
+            .filter(
+              (a: any) =>
+                a.status === "CONFIRMED" &&
+                a.intakeStage === "AFTER_CONFIRMATION" &&
+                !a.intakeComplete,
+            )
+            .map((a: any) => (
+              <Link href={`/appointments/${a.id}`} key={`intake-${a.id}`}>
+                <span>Complete intake before your session · {a.provider}</span>
+                <span>Open →</span>
+              </Link>
+            ))}
+          {!next && (
+            <p className="workflow-note">
+              {t("No upcoming appointments")} ·{" "}
+              <Link href="/professionals">{t("Browse care")}</Link>
+            </p>
+          )}
+          <Link href="/my-health">
+            <span>Intake, care plans and today’s tasks</span>
+            <span>Review →</span>
+          </Link>
+        </section>
+      )}
+      {signedIn && <TodayAssignedTasks />}
+      {signedIn && <Notifications />}
       {health && <TodayList health={health} act={act} />}
       <div className="section-title">
         <h2>What would you like help with?</h2>
@@ -174,7 +190,7 @@ export default function Home() {
             {people.map((p: any) => (
               <Link
                 className="person-card"
-                href="/professionals"
+                href={`/professionals/${p.id}`}
                 key={p.serviceId || p.id}
               >
                 <span className="record-icon">
@@ -187,7 +203,10 @@ export default function Home() {
                 <strong>{p.name}</strong>
                 <span>{professions[p.profession] || p.profession}</span>
                 <span className="verified">
-                  <BadgeCheck size={16} /> Credentials checked
+                  <BadgeCheck size={16} />{" "}
+                  {p.name.includes("(Sample)")
+                    ? "Sample profile"
+                    : "Credentials checked"}
                 </span>
               </Link>
             ))}

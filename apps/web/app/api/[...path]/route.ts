@@ -41,6 +41,7 @@ async function proxy(
       "integrations/google/status",
       "integrations/google/test",
       "catalog",
+      "workflow",
       "me",
       "providers/applications",
       "providers/documents",

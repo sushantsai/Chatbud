@@ -14,11 +14,21 @@ export function usePro() {
 const stages = [
   ["Submitted", "We have your application and documents."],
   ["Under review", "We verify your identity, qualifications and registration."],
-  ["Decision", "You will hear from us by email with the outcome."],
+  ["Decision", "Your written outcome appears in Chatbud."],
 ];
 // Everything under /pro passes through here: sign-in, then application, then the practice pages.
 export function ProGate({ children }: { children: React.ReactNode }) {
-  const { mode, token, dashboard, api, setError, signOut, busy } = useApp();
+  const {
+    mode,
+    token,
+    dashboard,
+    api,
+    setError,
+    signOut,
+    busy,
+    run,
+    setNotice,
+  } = useApp();
   const [workspace, setWorkspace] = useState<any>(null),
     [failed, setFailed] = useState(false);
   const live = mode === "live";
@@ -91,7 +101,8 @@ export function ProGate({ children }: { children: React.ReactNode }) {
               <Timer size={18} />
               <span>
                 <strong>What happens next</strong>A reviewer assesses your
-                application and emails you the outcome.
+                application. Feedback target: 2 Nepal working days, excluding
+                public holidays.
               </span>
             </li>
           </ul>
@@ -184,6 +195,57 @@ export function ProGate({ children }: { children: React.ReactNode }) {
             )}
           </div>
         </div>
+      )}
+      {workspace?.corrections?.length > 0 && (
+        <section className="panel">
+          <h3>Requested corrections</h3>
+          {workspace.corrections.map((c: any, i: number) => (
+            <p key={i}>
+              <strong>{c.field}</strong> · {c.reason}
+            </p>
+          ))}
+          <p>Accepted fields and documents remain saved.</p>
+        </section>
+      )}
+      {workspace?.caseStatus === "REJECTED" && (
+        <section className="panel">
+          <h3>Request human re-review</h3>
+          <p>
+            You may provide clarification or new evidence. Approval remains a
+            human decision.
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const reason = String(
+                new FormData(e.currentTarget).get("reason") || "",
+              );
+              run(async () => {
+                await api("workflow", "POST", {
+                  action: "rereview_request",
+                  data: { reason },
+                });
+                setNotice(
+                  "Human re-review requested. Feedback target: 2 Nepal working days.",
+                );
+                setWorkspace(await api("provider/workspace"));
+              });
+            }}
+          >
+            <label>
+              Clarification
+              <textarea
+                name="reason"
+                required
+                minLength={10}
+                maxLength={2000}
+              />
+            </label>
+            <button className="button" disabled={busy}>
+              Request re-review
+            </button>
+          </form>
+        </section>
       )}
       <ApplicationForm />
     </>

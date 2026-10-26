@@ -41,6 +41,9 @@ export function Application({
 }) {
   const { api, run, busy, setNotice, setError } = useApp();
   const [rationale, setRationale] = useState(item.rationale || "");
+  const [corrections, setCorrections] = useState<
+    { field: string; reason: string }[]
+  >(item.corrections || []);
   const details = item.application || {};
   const { practice, identity, registration, declarations } = details;
   const decide = (decision: string, notice: string) =>
@@ -49,6 +52,10 @@ export function Application({
         caseId: item.id,
         decision,
         rationale: rationale.trim(),
+        corrections:
+          decision === "NEEDS_INFORMATION"
+            ? corrections.filter((c) => c.field.trim() && c.reason.trim())
+            : [],
       });
       await reload();
       setNotice(notice);
@@ -84,6 +91,51 @@ export function Application({
         </div>
         <span className="status">{caseStatus[item.status] || item.status}</span>
       </header>
+      <section className="service-card">
+        <h4>Specific corrections</h4>
+        <p className="workflow-note">
+          Identify each field or document and explain the required correction.
+          Preserve accepted items.
+        </p>
+        {corrections.map((c, i) => (
+          <div className="field-grid" key={i}>
+            <label>
+              Field / document
+              <input
+                value={c.field}
+                onChange={(e) =>
+                  setCorrections(
+                    corrections.map((v, j) =>
+                      j === i ? { ...v, field: e.target.value } : v,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <label>
+              Correction reason
+              <input
+                value={c.reason}
+                onChange={(e) =>
+                  setCorrections(
+                    corrections.map((v, j) =>
+                      j === i ? { ...v, reason: e.target.value } : v,
+                    ),
+                  )
+                }
+              />
+            </label>
+          </div>
+        ))}
+        <button
+          className="text-button"
+          onClick={() =>
+            setCorrections([...corrections, { field: "", reason: "" }])
+          }
+        >
+          Add field/document correction
+        </button>
+      </section>
       <p className="case-bio">{item.bio}</p>
       {practice && (
         <Facts

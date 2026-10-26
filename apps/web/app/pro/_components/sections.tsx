@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import { Check, Plus } from "lucide-react";
 import { useApp } from "../../_components/app";
@@ -143,108 +144,39 @@ function Proposed({ a }: { a: any }) {
   ) : null;
 }
 export function Requests() {
-  const { workspace, api, busy, act } = useSection();
-  const [links, setLinks] = useState<Record<string, string>>({}),
-    [moving, setMoving] = useState("");
+  const { workspace } = usePro();
   const requests = pendingRequests(workspace);
   return (
     <section className="panel">
-      <h2>Appointment requests</h2>
+      <h2>Requests needing a response</h2>
       {requests.length === 0 ? (
         <p className="empty-inline">
-          New requests appear here. You have 24 hours to confirm each one.
+          Paid requests appear here. Respond within 30 minutes; Chatbud calls at
+          30 minutes and expires unanswered requests after 60 minutes.
         </p>
       ) : (
-        requests.map((a: any) => {
-          const own = (links[a.id] || "").trim();
-          return (
-            <div className="booking-row" key={a.id}>
-              <div>
-                <strong>{a.client}</strong>
-                <p>
-                  {a.service} · {nepalTime(a.startsAt)} NPT
-                  {a.paymentStatus === "PAID" && " · Paid"}
-                  {a.paymentStatus === "PAY_LATER" && " · Client pays later"}
-                </p>
-                <Proposed a={a} />
-              </div>
-              <span className="status status-held">
-                {appointmentStatus[a.status]}
-              </span>
-              <div className="request-actions wrap">
-                <button
-                  className="button small"
-                  disabled={busy || (!!own && !/^https:\/\/\S+$/.test(own))}
-                  onClick={() =>
-                    act(
-                      () =>
-                        api("provider/appointments", "POST", {
-                          id: a.id,
-                          decision: "CONFIRM",
-                          ...(own ? { meetingUrl: own } : {}),
-                        }),
-                      "Confirmed. The meeting link is now on your client’s appointment.",
-                    )
-                  }
-                >
-                  Confirm
-                </button>
-                <button
-                  className="button secondary small"
-                  onClick={() => setMoving(moving === a.id ? "" : a.id)}
-                >
-                  Propose another time
-                </button>
-                <button
-                  className="text-button"
-                  disabled={busy}
-                  onClick={() =>
-                    act(
-                      () =>
-                        api("provider/appointments", "POST", {
-                          id: a.id,
-                          decision: "DECLINE",
-                        }),
-                      "Request declined.",
-                    )
-                  }
-                >
-                  Decline
-                </button>
-              </div>
-              {moving === a.id ? (
-                <ProposeTime a={a} done={() => setMoving("")} />
-              ) : (
-                <details className="own-link">
-                  <summary>Use my own meeting link</summary>
-                  <div className="field">
-                    <label htmlFor={`link-${a.id}`}>
-                      Meeting link<span className="optional">Optional</span>
-                    </label>
-                    <input
-                      id={`link-${a.id}`}
-                      type="url"
-                      inputMode="url"
-                      placeholder="https://meet.google.com/…"
-                      value={links[a.id] || ""}
-                      onChange={(e) =>
-                        setLinks((l) => ({ ...l, [a.id]: e.target.value }))
-                      }
-                    />
-                    <p className="field-hint">
-                      Leave empty and Chatbud creates the meeting link when you
-                      confirm.
-                    </p>
-                  </div>
-                </details>
-              )}
-            </div>
-          );
-        })
+        requests.map((a: any) => (
+          <article className="service-card" key={a.id}>
+            <h3>{a.client}</h3>
+            <p>
+              {a.service} · {nepalTime(a.startsAt)} NPT
+            </p>
+            <p className="workflow-note">
+              Approval due{" "}
+              {a.approvalDueAt
+                ? nepalTime(a.approvalDueAt) + " NPT"
+                : "before the request expires"}
+            </p>
+            <Link className="button" href={`/appointments/${a.id}`}>
+              Review request
+            </Link>
+          </article>
+        ))
       )}
     </section>
   );
 }
+
 export function Upcoming() {
   const { workspace, api, busy, act } = useSection();
   const [moving, setMoving] = useState("");

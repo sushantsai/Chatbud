@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { OrderReturn } from "../_components/order-return";
 import { useApp } from "../_components/app";
 import { PayStep } from "../_components/pay";
 import { Dialog, SignInPrompt, money, nepalTime } from "../_components/ui";
@@ -80,6 +81,7 @@ export default function Orders() {
               <strong>
                 {o.reference} · {money(o.total)}
               </strong>
+              {o.status === "FULFILLED" && <OrderReturn id={o.id} />}
               <p>
                 {o.items
                   .map((i: any) => `${i.title} × ${i.quantity}`)
@@ -101,6 +103,7 @@ export default function Orders() {
               {orderStage(o)}
             </span>
             <div className="request-actions wrap">
+              {o.status === "FULFILLED" && <OrderReturn id={o.id} />}
               {o.status === "AWAITING_PAYMENT" && (
                 <button className="button small" onClick={() => setPaying(o)}>
                   Pay now
@@ -117,7 +120,7 @@ export default function Orders() {
                         setOrders((await call("orders_mine")).orders);
                         setNotice(
                           o.paymentStatus === "PAID"
-                            ? "Order cancelled. Your refund is being processed."
+                            ? "Cancellation recorded. Any eligible refund is logged for manual finance processing."
                             : "Order cancelled.",
                         );
                       });

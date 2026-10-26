@@ -1,321 +1,283 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useApp } from "../_components/app";
+import { PhoneVerification } from "../_components/phone-verification";
 import { PayStep } from "../_components/pay";
-import { SignInPrompt, money } from "../_components/ui";
-import { features } from "../_lib/features";
-const blank = {
-  recipient: "",
-  phone: "",
-  address: "",
-  city: "",
-  district: "",
-  note: "",
-};
+import { money } from "../_components/ui";
 export default function Checkout() {
-  const {
-    mode,
-    token,
-    cart,
-    setCart,
-    api,
-    run,
-    busy,
-    error,
-    setNotice,
-    openAuth,
-  } = useApp();
-  const router = useRouter();
-  const [delivery, setDelivery] = useState(blank),
-    [code, setCode] = useState(""),
-    [applied, setApplied] = useState(""),
+  const { api, token, cart, setCart, run, busy, openAuth, setError } = useApp();
+  const [zones, setZones] = useState<any>(null),
+    [zoneId, setZoneId] = useState(""),
+    [recipient, setRecipient] = useState(""),
+    [address, setAddress] = useState(""),
     [method, setMethod] = useState("ONLINE"),
     [quote, setQuote] = useState<any>(null),
-    [problem, setProblem] = useState(""),
-    [placed, setPlaced] = useState<any>(null);
-  // One key per order, so a double tap cannot place two.
+    [placed, setPlaced] = useState<any>(null),
+    [review, setReview] = useState(false),
+    [now, setNow] = useState(Date.now());
   const [key] = useState(() => crypto.randomUUID());
+  const request = (action: string, data: any = {}) =>
+    api("workflow", "POST", { action, data });
   const items = Object.entries(cart)
-    .filter(([, quantity]) => quantity > 0)
+    .filter(([, q]) => q > 0)
     .map(([skuId, quantity]) => ({ skuId, quantity }));
   const bag = JSON.stringify(items);
-  const live = mode === "live";
-  // Prices always come from the server: live offers, the promo code and delivery.
+  const load = () => request("delivery_zones").then(setZones);
   useEffect(() => {
-    if (!live || !token || items.length === 0 || placed) return;
+    if (!token) return;
     let active = true;
-    api("shop", "POST", {
-      action: "quote",
-      data: { items, promoCode: applied },
-    })
-      .then((q) => {
-        if (!active) return;
-        setQuote(q);
-        setProblem("");
-      })
+    request("delivery_zones")
+      .then((d) => active && setZones(d))
+      .catch((e) => active && setError(e.message));
+    return () => {
+      active = false;
+    };
+  }, [token]);
+  useEffect(() => {
+    if (!zoneId || !token || items.length === 0) return;
+    let active = true;
+    request("delivery_quote", { zoneId, items, promoCode: "" })
+      .then((d) => active && setQuote(d))
       .catch((e) => {
-        if (active && e.name !== "AbortError") setProblem(e.message);
+        if (active) {
+          setQuote(null);
+          setError(e.message);
+        }
       });
     return () => {
       active = false;
     };
-  }, [bag, applied, live, token]);
-  if (features.store !== "live" || !live)
+  }, [zoneId, bag, token]);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const zone = zones?.zones.find((z: any) => z.id === zoneId);
+  const create = async () =>
+    api("shop", "POST", {
+      action: "order_create",
+      data: {
+        items,
+        expectedTotal: quote.total,
+        promoCode: "",
+        delivery: {
+          recipient,
+          phone: zones.phone,
+          address,
+          city: zone.city,
+          district: zone.area,
+          note: "",
+        },
+        method,
+        idempotencyKey: key,
+      },
+    });
+  if (!token)
     return (
-      <section className="empty">
-        <h2>Checkout is not available here</h2>
-        <Link className="button" href="/store">
-          Back to the store
+      <>
+        <ol className="flow-steps">
+          <li aria-current="step">1. Phone</li>
+          <li>2. Delivery</li>
+          <li>3. Review & Payment</li>
+        </ol>
+        <PhoneVerification done={load} />
+        <button className="text-button" onClick={openAuth}>
+          Sign in to an existing care account first
+        </button>
+      </>
+    );
+  if (!zones) return <p role="status">Checking phone and delivery coverage…</p>;
+  if (!zones.phone) return <PhoneVerification done={load} />;
+  if (placed?.paymentMethod === "COD")
+    return (
+      <section className="panel">
+        <h1>Order placed</h1>
+        <p>
+          {placed.reference} · Pay {money(placed.total)} on delivery.
+        </p>
+        <p>
+          Stock, verified phone, address and COD coverage were checked. Chatbud
+          calls only flagged orders.
+        </p>
+        <Link className="button" href="/orders">
+          Track order
         </Link>
       </section>
     );
-  if (!token)
-    return <SignInPrompt open={openAuth}>Sign in to check out.</SignInPrompt>;
-  if (placed)
+  if (placed) {
+    const left = Math.max(
+      0,
+      Math.ceil((Date.parse(placed.expiresAt) - now) / 1000),
+    );
     return (
-      <section className="panel checkout-pay">
-        <h2>Pay for order {placed.reference}</h2>
-        <PayStep orderId={placed.id} amount={placed.total} />
-        <p className="field-hint">
-          Changed your mind? You can cancel this order under{" "}
-          <Link href="/orders">Orders</Link>.
+      <section className="panel">
+        <ol className="flow-steps">
+          <li>1. Phone ✓</li>
+          <li>2. Delivery ✓</li>
+          <li aria-current="step">3. Review & Payment</li>
+        </ol>
+        <h1>Review & Payment</h1>
+        <p>{placed.reference}</p>
+        <p className="care-warning" role="timer">
+          Stock reserved · {Math.floor(left / 60)}:
+          {String(left % 60).padStart(2, "0")} remaining
         </p>
+        <p>
+          {recipient} · {address} · {zone?.city}, {zone?.area}
+        </p>
+        {left > 0 ? (
+          <PayStep orderId={placed.id} amount={placed.total} />
+        ) : (
+          <>
+            <p>
+              The unpaid stock reservation has expired. If payment has already
+              been sent, check your order before paying again. Chatbud rechecks
+              stock and coverage for late payments, or creates a
+              full-refund-eligible case if fulfillment is not possible.
+            </p>
+            <Link className="button" href="/orders">
+              Check order
+            </Link>
+          </>
+        )}
       </section>
     );
+  }
   if (items.length === 0)
     return (
-      <section className="empty">
-        <h2>Your bag is empty</h2>
-        <p>Add something from the store, then come back to check out.</p>
-        <Link className="button" href="/store">
-          Go to the store
-        </Link>
+      <section className="panel">
+        <h1>Your bag is empty</h1>
+        <Link href="/store">Browse products</Link>
       </section>
     );
-  const set = (patch: Partial<typeof blank>) =>
-    setDelivery({ ...delivery, ...patch });
   return (
-    <form
-      className="checkout"
-      onSubmit={(e) => {
-        e.preventDefault();
-        run(async () => {
-          const order = await api("shop", "POST", {
-            action: "order_create",
-            data: {
-              items,
-              promoCode: quote?.promoCode || "",
-              delivery: Object.fromEntries(
-                Object.entries(delivery).map(([k, v]) => [k, v.trim()]),
-              ),
-              method,
-              idempotencyKey: key,
-            },
-          });
-          setCart({});
-          if (method === "COD") {
-            setNotice(
-              `Order ${order.reference} placed. Pay ${money(order.total)} in cash when it arrives.`,
-            );
-            return router.push("/orders");
-          }
-          setPlaced(order);
-        });
-      }}
-    >
-      <section className="panel">
-        <h2>Delivery details</h2>
-        <div className="field-grid">
-          <div className="field">
-            <label htmlFor="d-name">Full name</label>
-            <input
-              id="d-name"
-              required
-              minLength={2}
-              maxLength={120}
-              autoComplete="name"
-              value={delivery.recipient}
-              onChange={(e) => set({ recipient: e.target.value })}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="d-phone">Mobile number</label>
-            <input
-              id="d-phone"
-              type="tel"
-              required
-              pattern="[0-9+ \-]{7,30}"
-              title="Digits only, for example 9800000000"
-              autoComplete="tel"
-              aria-describedby="d-phone-hint"
-              value={delivery.phone}
-              onChange={(e) => set({ phone: e.target.value })}
-            />
-            <p className="field-hint" id="d-phone-hint">
-              The courier calls this number before delivery.
-            </p>
-          </div>
-          <div className="field">
-            <label htmlFor="d-address">Street address, ward or landmark</label>
-            <input
-              id="d-address"
-              required
-              minLength={5}
-              maxLength={300}
-              autoComplete="street-address"
-              value={delivery.address}
-              onChange={(e) => set({ address: e.target.value })}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="d-city">City or municipality</label>
-            <input
-              id="d-city"
-              required
-              minLength={2}
-              maxLength={80}
-              autoComplete="address-level2"
-              value={delivery.city}
-              onChange={(e) => set({ city: e.target.value })}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="d-district">District</label>
-            <input
-              id="d-district"
-              required
-              minLength={2}
-              maxLength={80}
-              value={delivery.district}
-              onChange={(e) => set({ district: e.target.value })}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="d-note">
-              Note for delivery<span className="optional">Optional</span>
-            </label>
-            <input
-              id="d-note"
-              maxLength={300}
-              value={delivery.note}
-              onChange={(e) => set({ note: e.target.value })}
-            />
-          </div>
-        </div>
-      </section>
-      <section className="panel">
-        <h2>Payment</h2>
-        <fieldset className="pay-step">
-          <legend>When would you like to pay?</legend>
-          <label className="choice method">
-            <input
-              type="radio"
-              name="pay"
-              checked={method === "ONLINE"}
-              onChange={() => setMethod("ONLINE")}
-            />
-            <span>
-              <strong>Pay now</strong>
-              <small>eSewa or Khalti, on the next step</small>
-            </span>
-          </label>
-          <label className="choice method">
-            <input
-              type="radio"
-              name="pay"
-              checked={method === "COD"}
-              onChange={() => setMethod("COD")}
-            />
-            <span>
-              <strong>Cash on delivery</strong>
-              <small>Pay the courier in cash when your order arrives</small>
-            </span>
-          </label>
-        </fieldset>
-      </section>
-      <section className="panel order-summary">
-        <h2>Your order</h2>
-        {!quote ? (
-          <p className="empty-inline" role="status">
-            {problem || "Working out your total…"}
+    <>
+      <ol className="flow-steps">
+        <li>1. Phone ✓</li>
+        <li aria-current={review ? undefined : "step"}>2. Delivery</li>
+        <li aria-current={review ? "step" : undefined}>3. Review & Payment</li>
+      </ol>
+      <form
+        className="panel form-stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!review) {
+            if (method === "ONLINE")
+              run(async () => {
+                const order = await create();
+                setPlaced({ ...order, expiresAt: order.expiresAt });
+                setCart({});
+              });
+            else setReview(true);
+          } else
+            run(async () => {
+              const order = await create();
+              setPlaced({ ...order, paymentMethod: "COD" });
+              setCart({});
+            });
+        }}
+      >
+        <h1>{review ? "Review & Payment" : "Delivery"}</h1>
+        <p>Verified phone: {zones.phone}</p>
+        {zones.zones.length === 0 ? (
+          <p className="care-warning">
+            Delivery areas and fees have not been published yet. Orders cannot
+            be placed until coverage is configured.
           </p>
         ) : (
           <>
-            {quote.lines.map((l: any) => (
-              <div className="cart-total line" key={l.skuId}>
-                <span>
-                  {l.title} × {l.quantity}
-                </span>
-                <span>{money(l.line)}</span>
-              </div>
-            ))}
-            <div className="promo">
-              <div className="field">
-                <label htmlFor="promo-entry">Promo code</label>
-                <input
-                  id="promo-entry"
-                  value={code}
-                  maxLength={20}
-                  autoComplete="off"
-                  onChange={(e) =>
-                    setCode(
-                      e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase(),
-                    )
-                  }
-                />
-              </div>
-              <button
-                type="button"
-                className="button secondary small"
-                disabled={code === applied}
-                onClick={() => setApplied(code)}
+            <label>
+              Recipient
+              <input
+                required
+                maxLength={100}
+                value={recipient}
+                readOnly={review}
+                onChange={(e) => setRecipient(e.target.value)}
+              />
+            </label>
+            <label>
+              Covered Kathmandu Valley area
+              <select
+                required
+                value={zoneId}
+                disabled={review}
+                onChange={(e) => {
+                  setZoneId(e.target.value);
+                  setMethod("ONLINE");
+                }}
               >
-                Apply
-              </button>
-            </div>
-            {quote.promoMessage && (
-              <p className="field-error" role="alert">
-                {quote.promoMessage}
-              </p>
+                <option value="">Choose delivery area</option>
+                {zones.zones.map((z: any) => (
+                  <option value={z.id} key={z.id}>
+                    {z.city} · {z.area} · {money(z.fee)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Full address & landmark
+              <textarea
+                required
+                minLength={5}
+                maxLength={500}
+                value={address}
+                readOnly={review}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </label>
+            {quote && (
+              <>
+                <dl className="clinical-summary">
+                  <div>
+                    <dt>Subtotal</dt>
+                    <dd>{money(quote.subtotal)}</dd>
+                  </div>
+                  <div>
+                    <dt>Delivery</dt>
+                    <dd>{money(quote.shipping)}</dd>
+                  </div>
+                  <div>
+                    <dt>Total</dt>
+                    <dd>{money(quote.total)}</dd>
+                  </div>
+                </dl>
+                <label>
+                  Payment method
+                  <select
+                    value={method}
+                    disabled={review}
+                    onChange={(e) => setMethod(e.target.value)}
+                  >
+                    <option value="ONLINE">Online payment</option>
+                    {zone?.cod && <option value="COD">Cash on delivery</option>}
+                  </select>
+                </label>
+                <p className="workflow-note">
+                  Online orders reserve stock for 15 minutes upon entry to
+                  Review & Payment. Cash-on-delivery orders are placed only when
+                  you confirm the reviewed order.
+                </p>
+                <button className="button" disabled={busy || !quote}>
+                  {review
+                    ? `Place COD order · ${money(quote.total)}`
+                    : "Continue to Review & Payment"}
+                </button>
+                {review && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => setReview(false)}
+                  >
+                    Edit delivery
+                  </button>
+                )}
+              </>
             )}
-            <div className="cart-total">
-              <span>Subtotal</span>
-              <span>{money(quote.subtotal)}</span>
-            </div>
-            {quote.discount > 0 && (
-              <div className="cart-total discount">
-                <span>{quote.promoCode}</span>
-                <span>− {money(quote.discount)}</span>
-              </div>
-            )}
-            <div className="cart-total">
-              <span>Delivery</span>
-              <span>{quote.shipping ? money(quote.shipping) : "Free"}</span>
-            </div>
-            <div className="cart-total grand">
-              <span>Total</span>
-              <strong>{money(quote.total)}</strong>
-            </div>
           </>
         )}
-        {(problem || error) && quote && (
-          <p role="alert" className="form-error">
-            {problem || error}
-          </p>
-        )}
-        <button className="button full" disabled={busy || !quote || !!problem}>
-          {busy
-            ? "Placing your order…"
-            : method === "COD"
-              ? "Place order"
-              : "Continue to payment"}
-        </button>
-        <p className="form-note">
-          You can cancel free of charge until the order is dispatched.
-        </p>
-      </section>
-    </form>
+      </form>
+    </>
   );
 }

@@ -2,22 +2,27 @@
 
 Development foundation for Chatbud Nepal, a digital health and wellbeing platform: mental-health, nutrition and fitness professionals (Care), Chatbud-owned wellness/supplement ecommerce (Store), and health insurance from licensed partners (Protect).
 
-## What works
+## Current release
 
-- Responsive care directory, nutrition filters, wellness shop, cart, care dashboard, practitioner application and reviewer workspaces.
-- Supabase email/password authentication, a Google sign-in flow awaiting provider credentials, and verified-user API authentication.
-- Live approved catalog and practitioner applications persisted in Supabase. Reviewer reads require a designated review role.
-- Development preview with fictional data, signed browser sessions, appointment overlap checks, 10-minute holds, inventory reservations, idempotent requests, and application review actions.
+The 26 October workflow release implements the accepted client care layouts, dedicated professional profiles and booking pages, appointment status/detail pages, the urgent admin queue, finance-only refund evidence, guided service setup, account-saved applications, clinical intake updates, author-only session notes, explicitly published care-plan versions, task progress and scheduling follow-ups.
 
-Live care works end to end without payment: practitioners apply with verification details and documents, reviewers approve, request information or reject, approved practitioners set services and weekly hours, and clients request appointments that the practitioner confirms. Confirming creates the meeting link automatically: a Google Meet space when `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REFRESH_TOKEN` are set on the API (scope `meetings.space.created`), otherwise a private Jitsi room; `/health` reports which as `videoProvider`. A practitioner can propose another time, which becomes final when the client accepts. My Health groups plans and goals by area of care (mental health, nutrition, fitness); a professional sees another area only while the client shares it, and each share records the consent wording. Payments, in-app video, shipping and fulfillment are not enabled. Care plans and applications are stored without application-level encryption; add it before holding real client records. Preview checkout collects no money and dispatches no products. Use fictional information in preview forms. The live catalog is empty until real professionals and products are onboarded.
+New paid appointments require full online payment. Payment reservation lasts 10 minutes; approval services escalate to a staff call case at 30 minutes and expire after 60 minutes. Instant services confirm on verified payment. A database cron checks deadlines every minute, releases expired stock holds, creates in-app reminders and routes overdue cases. It does not place calls or send external messages. AI integration remains paused.
+
+The Store retains its existing visual baseline with the locked category, product-page, Bag and checkout workflows. Phone verification, published delivery areas and stock checks are enforced on the server. Online stock holds last 15 minutes. Late payments recheck fulfillment or create a refund case. Whole-order returns are reviewed after receipt/inspection or authorized waiver; selected-item and other exceptions go through support review.
+
+English is the default. The language selector supplies Nepali/Hindi navigation and key booking/status controls; remaining English screen copy and notification templates require translation review before a complete three-language launch. Professional-authored clinical content is not automatically translated.
+
+Actual online payment, SMS OTP delivery, Google OAuth/Meet and Calendar depend on their provider configuration. Sandbox payments are disabled in production. Publishing delivery areas/fees, the official Nepal holiday calendar, staff role grants and staffing availability are operating setup tasks. No delivery coverage, gateway payout or external reminder is simulated as completed.
+
+Previous UI: https://chatbud-classic.vercel.app (Vercel sign-in required). Archived source: `archive/ui-before-locked-redesign-20261026`, commit `d0e12084f868213115c2ae08be38a4e6b8ed3acd`. Presentation rollback does not undo shared database policies. See [release record](docs/releases/2026-10-26.md).
 
 ## App structure
 
-Google sign-in setup and the team-only Meet connection test at `/admin/integrations` are documented in [GOOGLE_SETUP.md](GOOGLE_SETUP.md). Provider availability and configured Meet credentials do not establish a successful Google login or room creation; run the documented account checks after configuration. AI integration is paused.
+Client navigation is Home, Care, Appointments, Store and My Health, with persistent Help. Profiles use `/professionals/:id`, bookings `/book/:service`, appointment details `/appointments/:id`, products `/store/:id`, and the Bag `/bag`. Professionals work under `/pro`; the team works under `/admin`, including the operations queue, finance, verification, roles and operating settings.
 
-The client site has five tabs, each its own route: Home (`/`), Professionals (`/professionals`), Appointments (`/appointments`), Store (`/store`) and My Health (`/my-health`), plus `/protect`. Professionals have their own portal under `/pro` (dashboard, appointments, clients, services and hours, profile) with its own sign-in and application flow. The Chatbud team signs in at `/admin`: a dashboard, applications, grievances, bookings, catalogue (products, stock, offers, promo codes) and team roles, each opened by a separate role (verification, clinical review, support, catalogue, administrator). Clients and professionals raise concerns at `/help` and `/pro/help`. All three use the same account system; the server checks roles on every request. Shared session, catalog and bag state lives in `apps/web/app/_components/app.tsx`.
+Browser requests use the Next.js fixed-route proxy to the NestJS API. The API verifies the Supabase user and derives their actor ID. Private schemas have deny-by-default RLS; only service-only RPCs can read or change records. Each action checks its own ownership/permission. Finance and supervisor grants are separate; ordinary support cannot read clinical answers or private notes.
 
-Each vertical is `live`, `soon` (shown as coming soon) or `off` (hidden) in `apps/web/app/_lib/features.ts`. Medicines and insurance are `soon`; content is `off`.
+Google integration setup is in [GOOGLE_SETUP.md](GOOGLE_SETUP.md). Configured credentials do not establish successful Google login or meeting creation; connection checks are still required.
 
 ## Local development
 

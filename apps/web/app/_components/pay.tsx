@@ -87,9 +87,7 @@ export function PayStep({
       .then((data) => {
         if (!active) return;
         // Orders are paid online here; cash on delivery is chosen at checkout.
-        const offered = data.methods.filter(
-          (m: any) => !orderId || m.id !== "LATER",
-        );
+        const offered = data.methods.filter((m: any) => m.id !== "LATER");
         setMethods(offered);
         setMethod(offered.find((m: any) => m.available)?.id || "");
       })
@@ -153,6 +151,12 @@ export function PayStep({
           ))}
         </fieldset>
       )}
+      {methods !== null && !methods.some((m) => m.available) && (
+        <p className="care-warning" role="status">
+          Online payment is not available yet. Your appointment cannot be
+          confirmed until a live payment method is enabled.
+        </p>
+      )}
       {chosen?.test && (
         <p className="test-mode" role="note">
           Test mode: {chosen.label} is using its practice system. No real money
@@ -161,8 +165,8 @@ export function PayStep({
       )}
       <p className="form-note">
         {orderId
-          ? "Your items are held for 30 minutes while you pay. You can cancel for a full refund until the order is dispatched."
-          : `Your time is held for 30 minutes while you pay. ${provider} then has 24 hours to confirm. If they cannot, or you cancel at least 24 hours before the session, you are refunded in full.`}
+          ? "Your items are held for 15 minutes while you pay."
+          : "Your time is held for 10 minutes from entry to Review & pay. For approval services, we follow up after 30 minutes and expire unanswered requests after 60 minutes. Eligible refunds are logged for manual finance processing."}
       </p>
       {error && (
         <p role="alert" className="form-error">
