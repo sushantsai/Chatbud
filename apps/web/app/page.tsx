@@ -72,16 +72,46 @@ export default function Home() {
           <p>Here is where things stand today.</p>
         </section>
       ) : (
-        <section className="need-first">
-          <span className="eyebrow">CHATBUD CARE</span>
-          <h1>What would you like help with?</h1>
-          <p>Choose your care need and find an approved professional.</p>
-          <div className="workflow-actions">
-            {areas.map((a) => (
-              <Link key={a.id} href={`/professionals?category=${a.id}`}>
-                {t(a.name)} →
+        <section className="hero">
+          <div className="hero-copy">
+            <span className="eyebrow">VERIFIED CARE IN NEPAL</span>
+            <h1>Expert care for your mind, food and body.</h1>
+            <p>
+              Talk to verified professionals online, follow a plan made for you,
+              and build small daily habits that last.
+            </p>
+            <div className="hero-actions">
+              <Link className="button" href="/professionals">
+                Find a professional
               </Link>
-            ))}
+              <button className="button secondary" onClick={openAuth}>
+                Create a free account
+              </button>
+            </div>
+            <ul className="trust">
+              <li>
+                <BadgeCheck size={18} /> Credentials checked
+              </li>
+              <li>
+                <Lock size={18} /> Private by default
+              </li>
+              <li>
+                <Video size={18} /> Online sessions
+              </li>
+            </ul>
+          </div>
+          <div className="hero-panel">
+            <h2>How Chatbud works</h2>
+            <ol>
+              {steps.map(([title, detail]) => (
+                <li key={title}>
+                  <div>
+                    <strong>{title}</strong>
+                    <span>{detail}</span>
+                  </div>
+                </li>
+              ))}
+            </ol>
           </div>
         </section>
       )}

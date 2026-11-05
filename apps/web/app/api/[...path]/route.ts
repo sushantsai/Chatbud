@@ -147,11 +147,21 @@ async function proxy(
         signal: AbortSignal.timeout(15000),
       },
     );
+    // The public catalogue is the same for everyone, so Vercel's edge may keep it
+    // briefly. Prices and stock are re-checked by the server at checkout.
+    const shareable =
+      req.method === "GET" &&
+      !isDemo &&
+      !auth &&
+      response.ok &&
+      ["catalog", "store/offers"].includes(target);
     const result = new NextResponse(await response.text(), {
       status: response.status,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "no-store",
+        "Cache-Control": shareable
+          ? "public, s-maxage=30, stale-while-revalidate=300"
+          : "no-store",
       },
     });
     if (isDemo)

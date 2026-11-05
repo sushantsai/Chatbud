@@ -30,32 +30,11 @@ export default function Store() {
   const products = catalog.products.filter(
     (p: any) =>
       (category === "all" ||
-        category === `${p.kind}_KIND` ||
         (p.category || p.kind) === category) &&
       `${p.name} ${p.description}`.toLowerCase().includes(query.toLowerCase()),
   );
   return (
     <>
-      <div className="segments" aria-label="Product category">
-        <button
-          aria-pressed={category === "all"}
-          onClick={() => setCategory("all")}
-        >
-          All products
-        </button>
-        <button
-          aria-pressed={category === "WELLNESS_KIND"}
-          onClick={() => setCategory("WELLNESS_KIND")}
-        >
-          Wellness products
-        </button>
-        <button
-          aria-pressed={category === "SUPPLEMENT_KIND"}
-          onClick={() => setCategory("SUPPLEMENT_KIND")}
-        >
-          Supplements
-        </button>
-      </div>
       <div className="searchbar">
         <Search size={20} />
         <input
