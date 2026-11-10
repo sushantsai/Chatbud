@@ -55,6 +55,9 @@ function Directory() {
   const people = Array.from(
     new Map<string, any>(matching.map((p: any) => [p.id, p])).values(),
   );
+  const active = [language, budget, availability].filter(
+    (v) => v !== "all",
+  ).length;
   const clear = () => {
     setQuery("");
     setLanguage("all");
@@ -125,13 +128,14 @@ function Directory() {
         />
         <button
           className="text-button filter-toggle"
+          aria-haspopup="dialog"
           onClick={() => setFilters(true)}
         >
           <SlidersHorizontal size={16} />
           {t("Filters")}
+          {active > 0 && <span className="filter-count">{active}</span>}
         </button>
       </div>
-      <div className="filter-panel">{controls}</div>
       {filters && (
         <Dialog title={t("Filters")} close={() => setFilters(false)}>
           {controls}
@@ -148,7 +152,10 @@ function Directory() {
       <div className="filter-chip-row">
         {language !== "all" && (
           <button onClick={() => setLanguage("all")}>
-            {language.toUpperCase()} ×
+            {({ en: "English", ne: "Nepali", hi: "Hindi" } as Record<string, string>)[
+              language
+            ] || language}{" "}
+            ×
           </button>
         )}
         {budget !== "all" && (
