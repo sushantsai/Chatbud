@@ -11,6 +11,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowUpRight,
+  CalendarCheck,
   CalendarDays,
   Check,
   ClipboardList,
@@ -114,6 +115,11 @@ const headings: Record<string, [string, string, string]> = {
     "Services and hours",
     "What clients can book with you, and when.",
   ],
+  "/pro/calendar": [
+    "FOR PROFESSIONALS",
+    "Google Calendar",
+    "Put confirmed sessions on your calendar and keep busy times free.",
+  ],
   "/pro/profile": [
     "FOR PROFESSIONALS",
     "Profile and verification",
@@ -206,6 +212,7 @@ const portals: Record<
       { href: "/pro/appointments", label: "Appointments", icon: CalendarDays },
       { href: "/pro/clients", label: "Clients", icon: Users },
       { href: "/pro/services", label: "Services & hours", icon: Stethoscope },
+      { href: "/pro/calendar", label: "Calendar", icon: CalendarCheck },
       { href: "/pro/profile", label: "Profile", icon: UserRound },
       { href: "/pro/help", label: "Help", icon: LifeBuoy },
     ],
