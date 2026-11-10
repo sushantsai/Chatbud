@@ -1,6 +1,12 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
-import { Check, FileText, ShieldCheck, Timer } from "lucide-react";
+import {
+  CalendarCheck,
+  Check,
+  ClipboardList,
+  ShieldCheck,
+  Wallet,
+} from "lucide-react";
 import { useApp } from "../../_components/app";
 import { AuthForm } from "../../_components/auth-form";
 import { ApplicationForm } from "./application";
@@ -73,46 +79,82 @@ export function ProGate({ children }: { children: React.ReactNode }) {
   }, [live, token, applied]);
   if (live && !token)
     return (
-      <div className="portal-entry">
-        <section className="apply-intro">
-          <h2>Join Chatbud as a verified professional</h2>
-          <p>
-            Every professional on Chatbud is verified before their profile is
-            published. The application takes about 12 minutes.
+      <div className="pro-entry">
+        <section className="pro-entry-pitch">
+          <h1>Your practice, online and paid upfront.</h1>
+          <p className="pro-entry-lede">
+            Chatbud connects verified mental-health, nutrition and fitness
+            professionals with clients across Nepal. You set the services, fees
+            and hours; clients pay when they book.
           </p>
-          <ul>
+          <ul className="pro-benefits">
             <li>
-              <FileText size={18} />
-              <span>
-                <strong>Have these ready</strong>
-                Government photo ID, your highest qualification certificate, and
-                your registration certificate if your profession has one.
-              </span>
+              <Wallet size={20} />
+              <div>
+                <strong>Requests arrive paid</strong>
+                <span>
+                  Clients pay online when they book, before the request reaches
+                  you. You approve it, then the time is theirs.
+                </span>
+              </div>
             </li>
             <li>
-              <ShieldCheck size={18} />
-              <span>
-                <strong>What we check</strong>
-                Identity, qualifications and registration, confirmed with the
-                bodies that issued them.
-              </span>
+              <CalendarCheck size={20} />
+              <div>
+                <strong>Your calendar, kept in step</strong>
+                <span>
+                  Connect Google Calendar: confirmed sessions appear with their
+                  video link, and your busy times are never offered.
+                </span>
+              </div>
             </li>
             <li>
-              <Timer size={18} />
-              <span>
-                <strong>What happens next</strong>A reviewer assesses your
-                application. Feedback target: 2 Nepal working days, excluding
-                public holidays.
-              </span>
+              <ClipboardList size={20} />
+              <div>
+                <strong>Notes and care plans in one place</strong>
+                <span>
+                  Intake answers, private notes and plans you publish to the
+                  client. Records are shared only as each client allows.
+                </span>
+              </div>
             </li>
           </ul>
+          <div className="pro-joining">
+            <h2>How joining works</h2>
+            <ol>
+              <li>
+                <strong>Apply</strong>
+                <span>
+                  About 12 minutes. Have your government photo ID, highest
+                  qualification and registration certificate ready.
+                </span>
+              </li>
+              <li>
+                <strong>Get verified</strong>
+                <span>
+                  We confirm identity, qualifications and registration with the
+                  bodies that issued them. Feedback within 2 Nepal working
+                  days.
+                </span>
+              </li>
+              <li>
+                <strong>Go live</strong>
+                <span>
+                  Add a service and your weekly hours, and your profile appears
+                  in the Chatbud directory.
+                </span>
+              </li>
+            </ol>
+          </div>
         </section>
-        <section className="panel portal-login">
-          <h2>Professional sign in</h2>
-          <p className="section-copy">
-            Sign in to your practice, or create an account to apply.
-          </p>
+        <section className="pro-entry-signin" aria-labelledby="pro-signin">
+          <h2 id="pro-signin">Sign in to your practice</h2>
+          <p>New to Chatbud? Create an account below, then apply.</p>
           <AuthForm />
+          <p className="pro-entry-note">
+            Looking for care for yourself?{" "}
+            <a href="/">Go to Chatbud for clients</a>
+          </p>
         </section>
       </div>
     );

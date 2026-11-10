@@ -1,25 +1,31 @@
 "use client";
-import { GoLive, WeeklyHours } from "../_components/sections";
-import { ServiceWizard } from "../_components/service-wizard";
-import { useApp } from "../../_components/app";
 import { useState } from "react";
+import { WeeklyHours } from "../_components/sections";
+import { ServiceWizard } from "../_components/service-wizard";
+import { Setup } from "../_components/desk";
+import { usePro } from "../_components/gate";
+import { useApp } from "../../_components/app";
+
 export default function Services() {
-  const { api, run, setNotice } = useApp();
+  const { api, run, busy, setNotice } = useApp();
+  const { workspace } = usePro();
   const [start, setStart] = useState(""),
     [end, setEnd] = useState("");
+  const invalid = !!start && !!end && end <= start;
   return (
-    <>
-      <GoLive />
+    <div className="pro-desk">
+      <Setup workspace={workspace} />
       <ServiceWizard />
       <WeeklyHours />
-      <section className="panel">
-        <h2>Block time</h2>
-        <p>
-          Blocked time removes overlapping slots from new bookings. Existing
-          confirmed appointments remain valid.
-        </p>
+      <section className="panel pro-block" aria-labelledby="block-title">
+        <div className="pro-section-head">
+          <h2 id="block-title">Block time off</h2>
+          <p>
+            Holidays, training or anything else. New bookings will not be
+            offered in this time; sessions already confirmed stay as they are.
+          </p>
+        </div>
         <form
-          className="form-stack"
           onSubmit={(e) => {
             e.preventDefault();
             run(async () => {
@@ -30,31 +36,44 @@ export default function Services() {
                   endsAt: new Date(`${end}:00+05:45`).toISOString(),
                 },
               });
+              setStart("");
+              setEnd("");
               setNotice("Time blocked.");
             });
           }}
         >
-          <label>
-            Start · Nepal time
+          <div className="field">
+            <label htmlFor="block-start">From · Nepal time</label>
             <input
+              id="block-start"
               type="datetime-local"
               required
               value={start}
               onChange={(e) => setStart(e.target.value)}
             />
-          </label>
-          <label>
-            End · Nepal time
+          </div>
+          <div className="field">
+            <label htmlFor="block-end">Until · Nepal time</label>
             <input
+              id="block-end"
               type="datetime-local"
               required
+              min={start || undefined}
+              aria-invalid={invalid}
               value={end}
               onChange={(e) => setEnd(e.target.value)}
             />
-          </label>
-          <button className="button">Block time</button>
+          </div>
+          <button className="button" disabled={busy || invalid}>
+            Block this time
+          </button>
         </form>
+        {invalid && (
+          <p className="field-error" role="alert">
+            The end must be after the start.
+          </p>
+        )}
       </section>
-    </>
+    </div>
   );
 }
