@@ -467,6 +467,15 @@ function Workspace({
   }
   useEffect(() => {
     let active = true;
+    // Show the last catalogue this browser saw straight away, then refresh it.
+    if (mode === "live")
+      try {
+        const saved = JSON.parse(localStorage.getItem("chatbud-catalog") || "null");
+        if (saved?.providers) {
+          setCatalog(saved);
+          setLoading(false);
+        }
+      } catch {}
     Promise.all([
       api("catalog"),
       // Offers and categories are decoration: the store still works without them.
@@ -479,13 +488,18 @@ function Workspace({
         const extra = new Map<string, any>(
           store.products.map((p: any) => [p.id, p]),
         );
-        setCatalog({
+        const next = {
           ...data,
           products: data.products.map((p: any) => ({
             ...p,
             ...extra.get(p.id),
           })),
-        });
+        };
+        setCatalog(next);
+        if (mode === "live")
+          try {
+            localStorage.setItem("chatbud-catalog", JSON.stringify(next));
+          } catch {}
       })
       .catch((e) => {
         if (active && e.name !== "AbortError") {
@@ -715,9 +729,10 @@ function Workspace({
         <Link
           className="persistent-help"
           href={portal === portals.pro ? "/pro/help" : "/help"}
+          aria-label={translate("Help")}
         >
           <LifeBuoy size={18} />
-          {translate("Help")}
+          <span>{translate("Help")}</span>
         </Link>
         <div className="workspace">
           {portal && (
