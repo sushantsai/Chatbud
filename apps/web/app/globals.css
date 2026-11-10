@@ -5489,3 +5489,15 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Professional application: the save note spans the top, the form sits centred. */
+.application > .draft-status {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: right;
+  min-height: 1.2em;
+}
+.pro-guest .application {
+  max-width: 1000px;
+  margin: 0 auto;
+}
