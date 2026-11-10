@@ -4594,8 +4594,38 @@ body {
   color: var(--muted);
   font-size: 12px;
 }
+/* Filters live in the search bar on every screen size. */
 .filter-toggle {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 12px;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--ink);
+  font-weight: 600;
+}
+.searchbar .filter-count {
+  padding: 0 6px;
+  border: 0;
+  margin: 0;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 12px;
+  display: inline-grid;
+  place-items: center;
+}
+.searchbar input:focus-visible {
+  outline: none;
+}
+.searchbar:focus-within {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent);
 }
 .filter-chip-row {
   display: flex;
@@ -4735,9 +4765,6 @@ body {
     overflow: hidden;
     clip: rect(0 0 0 0);
   }
-  .filter-toggle {
-    display: inline-flex;
-  }
   .filter-panel {
     display: none;
   }
@@ -4790,3 +4817,15 @@ body {
   }
 }
 @media(max-width:760px){.topbar .top-actions{gap:6px;min-width:0}.topbar .brand{font-size:22px;gap:5px}.topbar .brand-icon{width:32px;height:32px}.topbar .top-actions .button.small{font-size:12px;padding:8px 10px;min-height:36px}.topbar .language-select{width:80px;flex-shrink:0;max-width:none;padding:5px 2px 5px 6px;font-size:11px}.topbar .top-actions .icon-button{width:32px;height:34px;padding:5px}.application-fields{min-inline-size:0;border:0;padding:0;margin:0}}
+
+/* Keep the results line on one row where it fits, wrapping as a whole. */
+.results-label {
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.results-label > span,
+.results-label > span:last-child {
+  flex-shrink: 0;
+  max-width: 100%;
+  text-align: left;
+}
