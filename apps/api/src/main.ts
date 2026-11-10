@@ -66,6 +66,7 @@ import {
 import { workflowActions, workflowRequest } from "./workflows";
 import {
   appointmentMeetingLink,
+  createMeetingLink,
   googleMeetConfigured,
   GoogleMeetError,
   testGoogleMeetConnection,
@@ -277,7 +278,9 @@ class DataService {
       const state = await this.calendar("event_state", actor, { id });
       if (!state.cipher) return;
       try {
-        if (["CANCELLED", "EXPIRED"].includes(state.status)) {
+        // HELD covers a confirmation that was refused after its calendar
+        // entry (and Meet) had already been made.
+        if (["CANCELLED", "EXPIRED", "HELD"].includes(state.status)) {
           if (!state.eventId) return;
           await removeEvent(state.cipher, state.eventId);
           await this.calendar("event_saved", actor, { id, eventId: "" });
@@ -318,11 +321,41 @@ class DataService {
   health(action: string, actor: string, data: any = {}) {
     return this.rpc(action, actor, data, "chatbud_health");
   }
+  // The video link for a session, in order of preference: the professional's
+  // own Google Calendar (Google adds a Meet to the calendar entry), then
+  // Chatbud's Google account, then a private Jitsi room.
   meeting(actor: string, id: string, intent: string, provided?: string) {
     return appointmentMeetingLink(
       () => this.rpc("appointment", actor, { id, intent }, "chatbud_meet"),
       provided,
+      async () => {
+        const url = await this.calendarMeet(actor, id);
+        return url
+          ? { url, provider: "google_meet" as const }
+          : createMeetingLink();
+      },
     );
+  }
+  // Puts the session on the professional's connected calendar with a Google
+  // Meet and returns that link, or null when there is no calendar or Google
+  // fails. If the confirmation is later refused, syncCalendar removes it.
+  private async calendarMeet(actor: string, id: string) {
+    if (!calendarConfigured()) return null;
+    try {
+      const state = await this.calendar("event_state", actor, { id });
+      if (!state.cipher) return null;
+      const event = await createEvent(state.cipher, {
+        id,
+        startsAt: state.startsAt,
+        endsAt: state.endsAt,
+        clientEmail: state.clientEmail,
+      });
+      await this.calendar("event_saved", actor, { id, eventId: event.eventId });
+      return event.meetingUrl;
+    } catch (e) {
+      console.error("Calendar Meet unavailable:", (e as Error).message);
+      return null;
+    }
   }
   // Signed-in practice and appointment features have no preview equivalent.
   liveOnly(mode: string | undefined, signed: string | undefined) {
@@ -839,12 +872,14 @@ class CareController {
             input.meetingUrl,
           )
         : undefined;
-    const result = await this.data.care("provider_appointment_decide", actor, {
-      ...input,
-      meetingUrl,
-    });
-    await this.data.syncCalendar(actor, input.id);
-    return result;
+    try {
+      return await this.data.care("provider_appointment_decide", actor, {
+        ...input,
+        meetingUrl,
+      });
+    } finally {
+      await this.data.syncCalendar(actor, input.id);
+    }
   }
   @Post("provider/reschedule") async propose(
     @Body() body: unknown,
@@ -1225,10 +1260,12 @@ class OpsController {
         "team_confirm",
         input.meetingUrl,
       );
-    const result = await this.data.rpc(action, actor, input, "chatbud_ops");
-    if (action.startsWith("booking_"))
-      await this.data.syncCalendar(actor, input.id);
-    return result;
+    try {
+      return await this.data.rpc(action, actor, input, "chatbud_ops");
+    } finally {
+      if (action.startsWith("booking_"))
+        await this.data.syncCalendar(actor, input.id);
+    }
   }
   @Get("store/offers") offers(
     @Query("mode") mode: string,
