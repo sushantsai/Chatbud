@@ -588,6 +588,12 @@ function Workspace({
       : under("/research")
         ? portals.research
         : null;
+  // The practice menu is only useful once a professional is approved; before
+  // that, /pro is a single page (sign in, apply, or track the application).
+  const proGuest =
+    portal === portals.pro &&
+    mode === "live" &&
+    (!token || dashboard.providerApplication?.status !== "APPROVED");
   // Team members see only the areas their roles open.
   const nav = (portal ? portal.tabs : tabs).filter(
     (t) => !t.area || mode === "demo" || canOpen(dashboard.roles, t.area),
@@ -654,7 +660,9 @@ function Workspace({
   };
   return (
     <AppContext.Provider value={app}>
-      <div className={`app ${portal ? "portal" : "client"}`}>
+      <div
+        className={`app ${portal ? "portal" : "client"}${proGuest ? " pro-guest" : ""}`}
+      >
         <header className="topbar">
           <Link className="brand" href={home}>
             <span className="brand-icon">
@@ -742,7 +750,7 @@ function Workspace({
           <span>{translate("Help")}</span>
         </Link>
         <div className="workspace">
-          {portal && (
+          {portal && !proGuest && (
             <aside className="sidebar">
               <div className="sidebar-label">
                 {portal ? portal.label.toUpperCase() : "YOUR WELLBEING"}
@@ -801,7 +809,7 @@ function Workspace({
             </aside>
           )}
           <main data-area={need?.area}>
-            {portal && (
+            {portal && !proGuest && (
               <div className="breadcrumb">
                 Chatbud <span>/</span> {crumb}
               </div>
@@ -811,7 +819,9 @@ function Workspace({
                 className={`page-heading${pathname === "/" ? " quiet" : ""}`}
               >
                 <div>
-                  <span className="eyebrow">{heading[0]}</span>
+                  {portal !== portals.pro && (
+                    <span className="eyebrow">{heading[0]}</span>
+                  )}
                   <h1>{translate(heading[1])}</h1>
                   <p>{translate(heading[2])}</p>
                 </div>

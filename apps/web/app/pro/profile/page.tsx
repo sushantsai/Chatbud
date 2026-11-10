@@ -8,7 +8,7 @@ export default function ProProfile() {
   const { dashboard } = useApp();
   const { workspace } = usePro();
   return (
-    <>
+    <div className="pro-desk">
       <ProfileName />
       <section className="panel">
         <h2>Verification</h2>
@@ -38,6 +38,6 @@ export default function ProProfile() {
         </p>
         <p className="case-bio">{dashboard.providerApplication?.bio}</p>
       </section>
-    </>
+    </div>
   );
 }
