@@ -100,6 +100,17 @@ export const consentUrl = (actor: string) =>
     state: signState(actor),
   })}`;
 
+// A connection failure with a short, safe code (never tokens or Google's text).
+export class CalendarConnectError extends Error {
+  constructor(readonly code: string) {
+    super(`Calendar connection failed: ${code}`);
+  }
+}
+const safeCode = (value: unknown) =>
+  typeof value === "string" && /^[a-z_]{1,40}$/.test(value)
+    ? value
+    : "token_request_failed";
+
 async function token(params: Record<string, string>, request: Fetch) {
   const response = await request("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -113,9 +124,7 @@ async function token(params: Record<string, string>, request: Fetch) {
   });
   const body = (await response.json().catch(() => ({}))) as Record<string, any>;
   if (!response.ok || !body.access_token)
-    throw new Error(
-      `Google token request failed: ${body.error || response.status}`,
-    );
+    throw new CalendarConnectError(safeCode(body.error));
   return body;
 }
 
@@ -125,10 +134,9 @@ export async function exchangeCode(code: string, request: Fetch = fetch) {
     { code, grant_type: "authorization_code", redirect_uri: redirectUri() },
     request,
   );
-  if (!body.refresh_token)
-    throw new Error("Google did not return a refresh token");
+  if (!body.refresh_token) throw new CalendarConnectError("no_refresh_token");
   if (!String(body.scope || "").includes("calendar.events"))
-    throw new Error("Calendar access was not granted");
+    throw new CalendarConnectError("calendar_not_granted");
   // The id token comes straight from Google over TLS, so its payload can be read directly.
   const claims = JSON.parse(
     Buffer.from(

@@ -54,6 +54,7 @@ import {
 import helmet from "helmet";
 import {
   busyTimes,
+  CalendarConnectError,
   calendarConfigured,
   consentUrl,
   createEvent,
@@ -965,8 +966,23 @@ class CareController {
       return { ...saved, available };
     } catch (e) {
       console.error("Calendar connection failed:", (e as Error).message);
+      const code = e instanceof CalendarConnectError ? e.code : "save_failed";
+      const reasons: Record<string, string> = {
+        calendar_not_granted:
+          "Calendar access was not allowed. Connect again and tick both calendar boxes on Google's screen.",
+        no_refresh_token:
+          "Google did not give lasting access. Remove Chatbud from your Google account's third-party access, then connect again.",
+        invalid_grant:
+          "That Google sign-in expired before it finished. Please connect again.",
+        invalid_client:
+          "Chatbud's Google settings on the server do not match Google Cloud. The Chatbud team needs to update the Google client ID and secret.",
+        unauthorized_client:
+          "Chatbud's Google settings on the server do not match Google Cloud. The Chatbud team needs to update the Google client ID and secret.",
+        redirect_uri_mismatch:
+          "Google Cloud does not list Chatbud's calendar address. The Chatbud team needs to add it.",
+      };
       throw new HttpException(
-        "Google did not complete the connection. Please try again and tick the calendar permissions.",
+        `${reasons[code] || "Google did not complete the connection. Please try again."} (code: ${code})`,
         400,
       );
     }
