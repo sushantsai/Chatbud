@@ -607,3 +607,11 @@ export const shopTeamActions = {
     })
     .strict(),
 };
+
+// A professional connecting their own Google Calendar.
+export const googleActions = {
+  status: none,
+  start: none,
+  finish: z.object({ code: text(600), state: text(600) }).strict(),
+  disconnect: none,
+};

@@ -31,6 +31,7 @@ import {
   documentRef,
   goalCheckin,
   goalInput,
+  googleActions,
   shareInput,
   shopActions,
   shopTeamActions,
@@ -51,6 +52,17 @@ import {
   order,
 } from "./schemas";
 import helmet from "helmet";
+import {
+  busyTimes,
+  calendarConfigured,
+  consentUrl,
+  createEvent,
+  exchangeCode,
+  freeSlots,
+  moveEvent,
+  removeEvent,
+  stateActor,
+} from "./calendar";
 import { workflowActions, workflowRequest } from "./workflows";
 import {
   appointmentMeetingLink,
@@ -251,6 +263,57 @@ class DataService {
   care(action: string, actor: string | null = null, data: any = {}) {
     return this.rpc(action, actor, data, "chatbud_care");
   }
+  // Professionals' Google Calendar connections.
+  calendar(action: string, actor: string | null, data: any = {}) {
+    return this.rpc(action, actor, data, "chatbud_calendar");
+  }
+  // Brings the professional's calendar in step with one appointment: adds the
+  // session once confirmed (with its existing video link), moves it if
+  // rescheduled, removes it if cancelled. Never throws: a booking must not
+  // fail because Google did.
+  async syncCalendar(actor: string, id: string | undefined) {
+    if (!id || !calendarConfigured()) return;
+    try {
+      const state = await this.calendar("event_state", actor, { id });
+      if (!state.cipher) return;
+      try {
+        if (["CANCELLED", "EXPIRED"].includes(state.status)) {
+          if (!state.eventId) return;
+          await removeEvent(state.cipher, state.eventId);
+          await this.calendar("event_saved", actor, { id, eventId: "" });
+        } else if (state.status === "CONFIRMED") {
+          if (state.eventId)
+            return void (await moveEvent(state.cipher, state.eventId, state));
+          const event = await createEvent(state.cipher, { id, ...state });
+          await this.calendar("event_saved", actor, {
+            id,
+            eventId: event.eventId,
+          });
+        }
+      } catch (e) {
+        console.error("Calendar update failed:", (e as Error).message);
+        await this.calendar("error_note", actor, {
+          id,
+          message: (e as Error).message,
+        });
+      }
+    } catch (e) {
+      console.error("Calendar sync skipped:", (e as Error).message);
+    }
+  }
+  // Catches up sessions that changed without a button press (instant
+  // confirmation, expiry), a few at a time.
+  async catchUpCalendar(actor: string) {
+    if (!calendarConfigured()) return;
+    try {
+      const { ids } = await this.calendar("pending_sync", actor);
+      await Promise.all(
+        (ids as string[]).map((id) => this.syncCalendar(actor, id)),
+      );
+    } catch (e) {
+      console.error("Calendar catch-up skipped:", (e as Error).message);
+    }
+  }
   // Goals, care plans and consent-gated sharing.
   health(action: string, actor: string, data: any = {}) {
     return this.rpc(action, actor, data, "chatbud_health");
@@ -357,7 +420,15 @@ class AppController {
         "chatbud_workflow",
       );
     }
-    return this.data.rpc(request.action, actor, input, "chatbud_workflow");
+    const result = await this.data.rpc(
+      request.action,
+      actor,
+      input,
+      "chatbud_workflow",
+    );
+    if (["cancellation_choice", "reschedule_offer"].includes(request.action))
+      await this.data.syncCalendar(actor, (input as { id?: string }).id);
+    return result;
   }
   @Get("catalog") async catalog(
     @Query("mode") mode: string,
@@ -630,14 +701,41 @@ class AppController {
 @Controller()
 class CareController {
   constructor(@Inject(DataService) private readonly data: DataService) {}
-  @Get("appointments/slots") slots(
+  @Get("appointments/slots") async slots(
     @Query("serviceId") serviceId: string,
     @Query("date") date: string,
     @Query("mode") mode: string,
     @Headers("x-chatbud-demo-session") session: string,
   ) {
     this.data.liveOnly(mode, session);
-    return this.data.care("slots", null, parse(slotQuery, { serviceId, date }));
+    const result = await this.data.care(
+      "slots",
+      null,
+      parse(slotQuery, { serviceId, date }),
+    );
+    if (!calendarConfigured() || !result.slots?.length) return result;
+    // Times that clash with the professional's own calendar are not offered.
+    try {
+      const calendar = await this.data.calendar("for_service", null, {
+        serviceId,
+      });
+      if (!calendar.cipher) return result;
+      const times = (result.slots as string[]).map((t) => Date.parse(t));
+      const busy = await busyTimes(
+        calendar.cipher,
+        new Date(Math.min(...times)).toISOString(),
+        new Date(
+          Math.max(...times) + calendar.durationMinutes * 60000,
+        ).toISOString(),
+      );
+      return {
+        ...result,
+        slots: freeSlots(result.slots, calendar.durationMinutes, busy),
+      };
+    } catch (e) {
+      console.error("Busy times unavailable:", (e as Error).message);
+      return result;
+    }
   }
   @Get("appointments") async mine(
     @Headers("authorization") auth: string,
@@ -655,11 +753,12 @@ class CareController {
   ) {
     this.data.liveOnly(mode, session);
     const input = parse(appointmentRequest, body);
-    return this.data.care(
-      "appointment_request",
-      await this.data.actor(auth),
-      input,
-    );
+    const actor = await this.data.actor(auth);
+    const result = await this.data.care("appointment_request", actor, input);
+    // A free session with instant confirmation is confirmed straight away.
+    if (result?.status === "CONFIRMED")
+      await this.data.syncCalendar(actor, result.id);
+    return result;
   }
   @Post("appointments/cancel") async cancel(
     @Body() body: unknown,
@@ -669,11 +768,10 @@ class CareController {
   ) {
     this.data.liveOnly(mode, session);
     const input = parse(appointmentRef, body);
-    return this.data.care(
-      "appointment_cancel",
-      await this.data.actor(auth),
-      input,
-    );
+    const actor = await this.data.actor(auth);
+    const result = await this.data.care("appointment_cancel", actor, input);
+    await this.data.syncCalendar(actor, input.id);
+    return result;
   }
   @Get("provider/workspace") async workspace(
     @Headers("authorization") auth: string,
@@ -681,7 +779,9 @@ class CareController {
     @Headers("x-chatbud-demo-session") session: string,
   ) {
     this.data.liveOnly(mode, session);
-    return this.data.care("provider_workspace", await this.data.actor(auth));
+    const actor = await this.data.actor(auth);
+    await this.data.catchUpCalendar(actor);
+    return this.data.care("provider_workspace", actor);
   }
   @Post("provider/service") async service(
     @Body() body: unknown,
@@ -739,10 +839,12 @@ class CareController {
             input.meetingUrl,
           )
         : undefined;
-    return this.data.care("provider_appointment_decide", actor, {
+    const result = await this.data.care("provider_appointment_decide", actor, {
       ...input,
       meetingUrl,
     });
+    await this.data.syncCalendar(actor, input.id);
+    return result;
   }
   @Post("provider/reschedule") async propose(
     @Body() body: unknown,
@@ -772,7 +874,7 @@ class CareController {
     const input = parse(rescheduleResponse, body);
     const actor = await this.data.actor(auth);
     // Reuse an existing room and authorize the client before creating a new one.
-    return this.data.care("appointment_reschedule_respond", actor, {
+    const result = await this.data.care("appointment_reschedule_respond", actor, {
       ...input,
       ...(input.accept
         ? {
@@ -784,6 +886,55 @@ class CareController {
           }
         : {}),
     });
+    await this.data.syncCalendar(actor, input.id);
+    return result;
+  }
+  // A professional connects, checks or removes their own Google Calendar.
+  @Post("provider/google") async google(
+    @Body() body: unknown,
+    @Headers("authorization") auth: string,
+    @Query("mode") mode: string,
+    @Headers("x-chatbud-demo-session") session: string,
+  ) {
+    this.data.liveOnly(mode, session);
+    const { action, data } = parse(opsRequest, body);
+    const schema = Object.hasOwn(googleActions, action)
+      ? googleActions[action as keyof typeof googleActions]
+      : null;
+    if (!schema) throw new HttpException("Unknown action", 404);
+    const input: any = parse(schema, data ?? {});
+    const actor = await this.data.actor(auth);
+    const available = calendarConfigured();
+    if (action === "disconnect")
+      return {
+        ...(await this.data.calendar("disconnect", actor)),
+        available,
+      };
+    // Also refuses anyone who is not an approved professional.
+    const status = await this.data.calendar("status", actor);
+    if (action === "status") return { ...status, available };
+    if (!available)
+      throw new HttpException("Google Calendar is not set up yet.", 400);
+    if (action === "start") return { url: consentUrl(actor) };
+    // finish: Google's reply must belong to the professional who started it.
+    if (stateActor(input.state) !== actor)
+      throw new HttpException(
+        "This connection attempt has expired. Please start again.",
+        400,
+      );
+    try {
+      const connection = await exchangeCode(input.code);
+      const saved = await this.data.calendar("save", actor, connection);
+      // Put already-confirmed future sessions on the newly connected calendar.
+      await this.data.catchUpCalendar(actor);
+      return { ...saved, available };
+    } catch (e) {
+      console.error("Calendar connection failed:", (e as Error).message);
+      throw new HttpException(
+        "Google did not complete the connection. Please try again and tick the calendar permissions.",
+        400,
+      );
+    }
   }
   @Post("admin/document") async evidence(
     @Body() body: unknown,
@@ -988,6 +1139,9 @@ class PayController {
       kind === "order"
         ? await this.shop("pay_settle", actor, settle)
         : await this.pay("settle", actor, settle);
+    // Paying can confirm an instant-booking session straight away.
+    if (kind === "appointment" && settled.status === "SUCCEEDED")
+      await this.data.syncCalendar(actor, attempt.appointmentId);
     return { ...settled, kind };
   }
   // Refunds and cash payments. Roles are enforced inside the database gateway.
@@ -1071,7 +1225,10 @@ class OpsController {
         "team_confirm",
         input.meetingUrl,
       );
-    return this.data.rpc(action, actor, input, "chatbud_ops");
+    const result = await this.data.rpc(action, actor, input, "chatbud_ops");
+    if (action.startsWith("booking_"))
+      await this.data.syncCalendar(actor, input.id);
+    return result;
   }
   @Get("store/offers") offers(
     @Query("mode") mode: string,
